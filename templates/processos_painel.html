@@ -1,0 +1,1133 @@
+{% load static %}
+{% load tz %}
+{% load timezone_tags %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="pt-br" class="h-full">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel de Movimentações Internas - Operação Rondonópolis</title>
+  <link rel="icon" type="image/png" href="{% static 'imagens/icone.png' %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #f8fafc;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .processo-item {
+      animation: slideInUp 0.3s ease-out;
+    }
+
+    .pulse-highlight {
+      animation: pulse 1s ease-in-out;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .etapa-linha-preenchimento {
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+
+<body class="h-full flex flex-col bg-slate-50">
+  <!-- Header -->
+  <div class="bg-white border-b border-slate-200 w-full px-4 py-4 flex items-center justify-between sticky top-0 z-50">
+    {% if is_monitor %}
+    <div></div>
+    {% else %}
+    <a href="{% url 'rondonopolis:visualizacao_processos' %}"
+      class="flex items-center gap-2 text-slate-600 hover:text-sky-600 transition-colors">
+      <i class="bi bi-arrow-left text-lg"></i>
+      <span class="font-medium">Voltar</span>
+    </a>
+    {% endif %}
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <div id="status-indicator" class="w-2 h-2 rounded-full bg-emerald-500"></div>
+        <span class="text-sm text-slate-600">Tempo Real</span>
+      </div>
+      <span class="text-sm text-slate-500">
+        {% timezone "America/Cuiaba" %}{% now "H:i" %}{% endtimezone %}
+      </span>
+      {% if is_monitor %}
+      <a href="{% url 'logout' %}"
+        class="px-3 py-1.5 bg-white text-red-600 rounded border border-red-300 hover:bg-red-50 text-sm font-normal flex items-center gap-2 transition-colors">
+        <i class="bi bi-box-arrow-right text-xs"></i>
+        Sair
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Conteúdo -->
+  <div class="flex-1 overflow-y-auto w-full">
+    <div class="w-full py-6 px-4">
+      <!-- Áudio -->
+      <audio id="audioAtualizacao" preload="auto">
+        <source src="{% static 'audio/audiopadraosis.wav' %}" type="audio/wav">
+      </audio>
+
+      <!-- Cabeçalho -->
+      <div class="mb-6">
+        <h1 class="text-2xl font-medium text-slate-800">Painel de Movimentações</h1>
+        <p class="text-sm text-slate-500 mt-1">Acompanhamento em tempo real dos processos de hoje</p>
+      </div>
+
+      <!-- Cards de Estatísticas -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <!-- Coletas -->
+        <div class="bg-white rounded border border-slate-200 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Coletas</span>
+            <div class="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+              <i class="bi bi-box-arrow-in-down text-sky-600 text-sm"></i>
+            </div>
+          </div>
+          <p class="text-2xl font-semibold text-slate-800 mb-0.5" id="count-coletas">{{ coletas_count }}</p>
+          <p class="text-xs text-slate-500">Processos hoje</p>
+        </div>
+
+        <!-- Entregas -->
+        <div class="bg-white rounded border border-slate-200 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Entregas</span>
+            <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <i class="bi bi-box-arrow-up text-emerald-600 text-sm"></i>
+            </div>
+          </div>
+          <p class="text-2xl font-semibold text-slate-800 mb-0.5" id="count-entregas">{{ entregas_count }}</p>
+          <p class="text-xs text-slate-500">Processos hoje</p>
+        </div>
+
+        <!-- Veículos -->
+        <div class="bg-white rounded border border-slate-200 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Veículos</span>
+            <div class="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+              <i class="bi bi-truck text-sky-600 text-sm"></i>
+            </div>
+          </div>
+          <p class="text-2xl font-semibold text-slate-800 mb-0.5" id="count-veiculos">{{ veiculos_count }}</p>
+          <p class="text-xs text-slate-500">Total hoje</p>
+        </div>
+
+        <!-- Processos Concluídos -->
+        <div class="bg-white rounded border border-slate-200 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Concluídos</span>
+            <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <i class="bi bi-check-circle text-emerald-600 text-sm"></i>
+            </div>
+          </div>
+          <p class="text-2xl font-semibold text-slate-800 mb-0.5" id="count-concluidos">{{ concluidos_count }}</p>
+          <p class="text-xs text-slate-500">Processos hoje</p>
+        </div>
+
+        <!-- Peso Total -->
+        <div class="bg-white rounded border border-slate-200 p-3 shadow-sm">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Peso Total</span>
+            <div class="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+              <i class="bi bi-box-seam text-sky-600 text-sm"></i>
+            </div>
+          </div>
+          <p class="text-2xl font-semibold text-slate-800 mb-0.5" id="peso-total">{{ peso_total|floatformat:0|intcomma }}</p>
+          <p class="text-xs text-slate-500">Quilogramas</p>
+        </div>
+      </div>
+
+      <!-- Lista de Processos -->
+      <div class="bg-white border border-slate-200 shadow-sm overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+          <h2 class="text-lg font-medium text-slate-800">Processos em Andamento</h2>
+          <p class="text-xs text-slate-500 mt-1">Atualização automática a cada 3 segundos</p>
+        </div>
+
+        <!-- Cards Mobile -->
+        <div class="block md:hidden divide-y divide-slate-100">
+          {% for item in agendamentos_com_etapas %}
+          {% with agendamento=item.agendamento etapas=item.etapas %}
+          <div class="processo-item p-5 hover:bg-slate-50 transition-colors"
+            data-status="{{ agendamento.status_geral }}"
+            data-prioridade="{% if agendamento.status_geral == 'aguardando_chegada' %}1{% elif agendamento.status_geral == 'em_checklist' %}2{% elif agendamento.status_geral == 'confirmacao_armazem' %}3{% elif agendamento.status_geral == 'pendente_liberacao_onda' %}4{% elif agendamento.status_geral == 'processo_concluido' %}5{% else %}6{% endif %}"
+            data-id="{{ agendamento.id }}" data-horario="{{ agendamento.horario_agendado|time:'H:i' }}"
+            data-ultima-atualizacao="{% if agendamento.atualizado_em %}{{ agendamento.atualizado_em|date:'U' }}000{% else %}0{% endif %}">
+
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-base font-semibold text-slate-900">{{ agendamento.ordem }}</span>
+                  {% if agendamento.tipo == 'coleta' %}
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200">Coleta</span>
+                  {% else %}
+                  <span
+                    class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">Entrega</span>
+                  {% endif %}
+                </div>
+                <div class="space-y-2 text-sm">
+                  <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1.5">
+                      <i class="bi bi-person text-slate-400"></i>
+                      <span class="text-slate-900 font-medium">{{ agendamento.motorista.nome|truncatechars:20 }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <i class="bi bi-truck text-slate-400"></i>
+                      <span class="text-slate-700 font-mono">{{ agendamento.placa_veiculo }}</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-4 text-slate-600">
+                    {% timezone "America/Cuiaba" %}
+                    {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                    <span
+                      class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+                    {% else %}
+                    <span>{{ agendamento.horario_agendado|time:"H:i" }}</span>
+                    {% endif %}
+                    {% endtimezone %}
+                    <span>{{ agendamento.transportadora.nome|truncatechars:20 }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="mt-4">
+              <!-- Etapas -->
+              <div class="flex justify-between items-center relative" data-processo-id="{{ agendamento.id }}">
+                {% for etapa in etapas %}
+                <div class="flex flex-col items-center flex-1 relative etapa-container"
+                  data-etapa-index="{{ forloop.counter0 }}"
+                  data-etapa-concluida="{% if etapa.concluida %}true{% else %}false{% endif %}"
+                  data-etapa-nome="{{ etapa.nome }}">
+                  {% if not forloop.last %}
+                  <div class="absolute top-3 left-4 w-full h-0.5 etapa-linha bg-gray-200 z-0"
+                    style="width: calc(100% - 1rem);">
+                    <div
+                      class="etapa-linha-preenchimento h-full {% if etapa.concluida %}bg-emerald-500{% else %}bg-sky-600{% endif %} {% if etapa.concluida %}w-full{% else %}w-0{% endif %}">
+                    </div>
+                  </div>
+                  {% endif %}
+
+                  <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs relative z-10 etapa-circulo transition-all duration-300 border-2
+                    {% if etapa.concluida %}bg-emerald-500 border-emerald-600 text-white
+                    {% elif etapa.disponivel and etapa.tipo == 'sequencial' %}bg-sky-500 border-sky-600 text-white
+                    {% elif etapa.tipo == 'independente' and etapa.concluida %}bg-sky-500 border-sky-600 text-white
+                    {% elif etapa.tipo == 'independente' %}bg-slate-200 border-slate-300 text-slate-500
+                    {% else %}bg-slate-200 border-slate-300 text-slate-400{% endif %}">
+                    {% if etapa.concluida %}
+                    <i class="bi bi-check text-xs"></i>
+                    {% else %}
+                    <span class="etapa-numero text-xs font-semibold">{{ forloop.counter }}</span>
+                    {% endif %}
+                  </div>
+                  <span class="text-xs mt-1.5 text-slate-600 text-center font-medium">{{ etapa.nome|truncatechars:8 }}</span>
+                  {% if etapa.concluida and etapa.data %}
+                  <span class="text-xs mt-0.5 text-emerald-600 font-semibold">{{ etapa.data|time:"H:i" }}</span>
+                  {% else %}
+                  <span class="text-xs mt-0.5 opacity-0">--</span>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+          {% empty %}
+          <div class="p-12 text-center">
+            <i class="bi bi-inbox text-4xl text-slate-300 mb-3"></i>
+            <p class="text-slate-500">Nenhuma movimentação encontrada</p>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Tabela Desktop -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full divide-y divide-slate-100">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Ordem</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Motorista &
+                  Veículo</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Agendamento
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
+                  Transportadora</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Etapas</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-slate-100" id="tabela-processos">
+              {% for item in agendamentos_com_etapas %}
+              {% with agendamento=item.agendamento etapas=item.etapas %}
+              <tr class="processo-item hover:bg-slate-50 transition-colors" data-status="{{ agendamento.status_geral }}"
+                data-prioridade="{% if agendamento.status_geral == 'aguardando_chegada' %}1{% elif agendamento.status_geral == 'em_checklist' %}2{% elif agendamento.status_geral == 'confirmacao_armazem' %}3{% elif agendamento.status_geral == 'pendente_liberacao_onda' %}4{% elif agendamento.status_geral == 'processo_concluido' %}5{% else %}6{% endif %}"
+                data-id="{{ agendamento.id }}" data-horario="{{ agendamento.horario_agendado|time:'H:i' }}"
+                data-ultima-atualizacao="{% if agendamento.atualizado_em %}{{ agendamento.atualizado_em|date:'U' }}000{% else %}0{% endif %}">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-semibold text-slate-900">{{ agendamento.ordem }}</div>
+                  <div class="mt-1">
+                    {% if agendamento.tipo == 'coleta' %}
+                    <span
+                      class="px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200">Coleta</span>
+                    {% else %}
+                    <span
+                      class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">Entrega</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-semibold text-slate-900">{{ agendamento.motorista.nome }}</div>
+                  <div class="text-sm text-slate-700 font-mono mt-1">{{ agendamento.placa_veiculo }}</div>
+                  <div class="text-xs text-slate-500 mt-1">{{ agendamento.get_tipo_veiculo_display }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-semibold text-slate-900">{{ agendamento.data_agendada|date:"d/m/Y" }}</div>
+                  <div class="text-sm text-slate-600">
+                    {% timezone "America/Cuiaba" %}
+                    {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                    <span
+                      class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+                    {% else %}
+                    {{ agendamento.horario_agendado|time:"H:i" }}
+                    {% endif %}
+                    {% endtimezone %}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-semibold text-slate-900">{{ agendamento.transportadora.nome|truncatechars:30 }}</div>
+                  <div class="text-sm text-slate-600 mt-1">{{ agendamento.peso|floatformat:0|intcomma }} kg</div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center relative" data-processo-id="{{ agendamento.id }}">
+                    {% for etapa in etapas %}
+                    <div
+                      class="flex flex-col items-center relative {% if not forloop.last %}mr-4{% endif %} etapa-container"
+                      data-etapa-index="{{ forloop.counter0 }}"
+                      data-etapa-concluida="{% if etapa.concluida %}true{% else %}false{% endif %}"
+                      data-etapa-nome="{{ etapa.nome }}">
+                      {% if not forloop.last %}
+                      <div class="absolute top-4 left-8 w-full h-0.5 etapa-linha bg-gray-200 z-0"
+                        style="width: calc(100% + 1rem);">
+                        <div
+                          class="etapa-linha-preenchimento h-full {% if etapa.concluida %}bg-emerald-500{% else %}bg-sky-600{% endif %} {% if etapa.concluida %}w-full{% else %}w-0{% endif %}">
+                        </div>
+                      </div>
+                      {% endif %}
+
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs relative z-10 etapa-circulo transition-all duration-300 border-2
+                        {% if etapa.concluida %}bg-emerald-500 border-emerald-600 text-white
+                        {% elif etapa.disponivel and etapa.tipo == 'sequencial' %}bg-sky-500 border-sky-600 text-white
+                        {% elif etapa.tipo == 'independente' and etapa.concluida %}bg-sky-500 border-sky-600 text-white
+                        {% elif etapa.tipo == 'independente' %}bg-slate-200 border-slate-300 text-slate-500
+                        {% else %}bg-slate-200 border-slate-300 text-slate-400{% endif %}">
+                        {% if etapa.concluida %}
+                        <i class="bi bi-check text-sm"></i>
+                        {% else %}
+                        <span class="etapa-numero text-xs font-semibold">{{ forloop.counter }}</span>
+                        {% endif %}
+                      </div>
+                      <span class="text-xs mt-2 text-slate-600 text-center font-medium min-w-[60px]">{{ etapa.nome|truncatechars:10 }}</span>
+                      {% if etapa.concluida and etapa.data %}
+                      <span class="text-xs mt-1 text-emerald-600 font-semibold">{{ etapa.data|time:"H:i" }}</span>
+                      {% else %}
+                      <span class="text-xs mt-1 opacity-0">--</span>
+                      {% endif %}
+                    </div>
+                    {% endfor %}
+                  </div>
+                </td>
+              </tr>
+              {% endwith %}
+              {% empty %}
+              <tr>
+                <td colspan="5" class="px-6 py-12 text-center">
+                  <i class="bi bi-inbox text-4xl text-slate-300 mb-3"></i>
+                  <p class="text-slate-500">Nenhuma movimentação encontrada</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Prévia de Impressão -->
+  <div id="modal-impressao"
+    class="hidden fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center p-6 border-b border-slate-200">
+        <h3 class="text-lg font-medium text-slate-900">Comprovante de Procedimento - Prévia</h3>
+        <button onclick="fecharModalImpressao()" class="text-slate-400 hover:text-slate-600 transition-colors">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+      <div class="p-6 bg-slate-50 overflow-y-auto flex-1">
+        <div id="conteudo-impressao" class="bg-white p-8 border-2 border-dashed border-slate-300 min-h-[700px]"></div>
+      </div>
+      <div class="flex justify-end gap-3 p-6 border-t border-slate-200 bg-slate-50">
+        <button onclick="imprimirDocumento()"
+          class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2 rounded flex items-center gap-2 transition-colors font-medium">
+          <i class="bi bi-printer"></i> Imprimir
+        </button>
+        <button onclick="salvarComoPDF()"
+          class="bg-slate-600 hover:bg-slate-700 text-white px-5 py-2 rounded flex items-center gap-2 transition-colors font-medium">
+          <i class="bi bi-file-earmark-pdf"></i> Salvar PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Estado global simplificado
+    let estadoProcessos = new Map(); // Map<id, {status, etapas, timestamp}>
+    let verificandoAtualizacoes = false;
+    let primeiraCarga = true;
+
+    // Reproduzir som de atualização
+    function reproduzirSomAtualizacao() {
+      const audio = document.getElementById('audioAtualizacao');
+      if (audio) {
+        try {
+          audio.currentTime = 0;
+          audio.play().catch(() => { }); // Ignorar erros de autoplay
+        } catch (error) {
+          console.warn('Erro ao reproduzir áudio:', error);
+        }
+      }
+    }
+
+    // Atualizar estatísticas dos cards
+    function atualizarEstatisticas(estatisticas) {
+      const atualizar = (id, valor) => {
+        const el = document.getElementById(id);
+        if (el && valor !== undefined) {
+          const valorAnterior = el.textContent.trim();
+          const novoValor = id === 'peso-total'
+            ? Math.round(parseFloat(valor)).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+            : String(valor);
+
+          if (valorAnterior !== novoValor) {
+            el.textContent = novoValor;
+            el.classList.add('pulse-highlight');
+            setTimeout(() => el.classList.remove('pulse-highlight'), 1000);
+          }
+        }
+      };
+
+      atualizar('count-coletas', estatisticas.coletas);
+      atualizar('count-entregas', estatisticas.entregas);
+      atualizar('count-veiculos', estatisticas.veiculos);
+      atualizar('count-concluidos', estatisticas.concluidos);
+      atualizar('peso-total', estatisticas.peso_total);
+    }
+
+    // Comparar dois estados de processo para detectar mudanças
+    function compararProcessos(antigo, novo) {
+      if (!antigo) return { mudou: true, motivo: 'novo' };
+
+      if (antigo.status_geral !== novo.status_geral) {
+        return { mudou: true, motivo: 'status' };
+      }
+
+      // Comparar etapas (Lógica Bruta: se qualquer coisa mudar no JSON das etapas, recarregar)
+      // Isso garante que mudanças de ordem, status, nomes, cores, etc, forcem a atualização.
+      const jsonAntigo = JSON.stringify(antigo.etapas || []);
+      const jsonNovo = JSON.stringify(novo.etapas || []);
+
+      if (jsonAntigo !== jsonNovo) {
+        return { mudou: true, motivo: 'etapas_mudaram' };
+      }
+
+      return { mudou: false };
+    }
+
+    // Atualizar visual de uma etapa específica
+    function atualizarEtapaVisual(container, etapa, index, todasEtapas) {
+      if (!container) return;
+
+      const concluida = Boolean(etapa.concluida);
+      const circulo = container.querySelector('.etapa-circulo');
+
+      // Atualizar atributo
+      container.setAttribute('data-etapa-concluida', concluida ? 'true' : 'false');
+
+      if (!circulo) return;
+
+      // Atualizar círculo - mobile usa w-6 h-6, desktop usa w-8 h-8
+      const isMobile = circulo.classList.contains('w-6');
+      const tamanhoClasse = isMobile ? 'w-6 h-6' : 'w-8 h-8';
+      circulo.className = `etapa-circulo ${tamanhoClasse} rounded-full flex items-center justify-center text-xs relative z-10 transition-all duration-300 border-2`;
+
+      if (concluida) {
+        circulo.classList.add('bg-emerald-500', 'border-emerald-600', 'text-white');
+        circulo.innerHTML = isMobile
+          ? '<i class="bi bi-check text-xs"></i>'
+          : '<i class="bi bi-check text-sm"></i>';
+
+        // Atualizar linha desta etapa (conecta com a próxima)
+        const linha = container.querySelector('.etapa-linha');
+        if (linha) {
+          const linhaPreenchimento = linha.querySelector('.etapa-linha-preenchimento');
+          if (linhaPreenchimento) {
+            linhaPreenchimento.style.width = '100%';
+            linhaPreenchimento.classList.remove('bg-sky-600', 'bg-gray-200');
+            linhaPreenchimento.classList.add('bg-emerald-500');
+          }
+        }
+      } else if (etapa.disponivel && etapa.tipo === 'sequencial') {
+        circulo.classList.add('bg-sky-500', 'border-sky-600', 'text-white');
+        circulo.innerHTML = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+
+        const linha = container.querySelector('.etapa-linha');
+        if (linha) {
+          const linhaPreenchimento = linha.querySelector('.etapa-linha-preenchimento');
+          if (linhaPreenchimento) {
+            linhaPreenchimento.style.width = '0%';
+            linhaPreenchimento.classList.remove('bg-emerald-500', 'bg-gray-200');
+            linhaPreenchimento.classList.add('bg-sky-600');
+          }
+        }
+      } else {
+        circulo.classList.add('bg-slate-200', 'border-slate-300', 'text-slate-400');
+        circulo.innerHTML = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+
+        const linha = container.querySelector('.etapa-linha');
+        if (linha) {
+          const linhaPreenchimento = linha.querySelector('.etapa-linha-preenchimento');
+          if (linhaPreenchimento) {
+            linhaPreenchimento.style.width = '0%';
+            linhaPreenchimento.classList.remove('bg-emerald-500', 'bg-sky-600');
+            linhaPreenchimento.classList.add('bg-gray-200');
+          }
+        }
+      }
+
+      // Atualizar horário - procurar o span que contém horário ou está oculto
+      const spans = Array.from(container.querySelectorAll('span'));
+      const horarioSpan = spans.find(s => {
+        const text = s.textContent.trim();
+        return (text.match(/^\d{2}:\d{2}$/) || s.classList.contains('opacity-0')) &&
+          !s.classList.contains('etapa-numero');
+      });
+
+      if (horarioSpan) {
+        if (etapa.data && concluida) {
+          try {
+            // Converter para timezone de Rondonópolis (America/Cuiaba)
+            const data = new Date(etapa.data);
+            const formatter = new Intl.DateTimeFormat('pt-BR', {
+              timeZone: 'America/Cuiaba',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            const partes = formatter.formatToParts(data);
+            const hora = partes.find(p => p.type === 'hour').value;
+            const minuto = partes.find(p => p.type === 'minute').value;
+            horarioSpan.textContent = `${hora}:${minuto}`;
+            horarioSpan.classList.remove('opacity-0');
+            horarioSpan.classList.add('text-emerald-600', 'font-semibold');
+          } catch (e) {
+            console.error('Erro ao formatar horário:', e);
+            horarioSpan.textContent = '--';
+            horarioSpan.classList.add('opacity-0');
+          }
+        } else {
+          horarioSpan.textContent = '--';
+          horarioSpan.classList.add('opacity-0');
+          horarioSpan.classList.remove('text-emerald-600', 'font-semibold');
+        }
+      }
+    }
+
+    // Função de atualizar barra de progresso removida (não é mais necessária)
+
+    // Atualizar um processo específico no DOM
+    function atualizarProcessoDOM(processo, houveMudanca) {
+      const processoId = String(processo.id);
+      const elementos = document.querySelectorAll(`[data-id="${processoId}"]`);
+
+      if (elementos.length === 0) {
+        console.warn(`Processo ${processoId} não encontrado no DOM`);
+        return;
+      }
+
+      elementos.forEach(elemento => {
+        // Atualizar atributos
+        elemento.setAttribute('data-status', processo.status_geral);
+        elemento.setAttribute('data-prioridade', String(processo.prioridade || 6));
+
+        if (houveMudanca) {
+          elemento.setAttribute('data-ultima-atualizacao', Date.now().toString());
+          elemento.classList.add('pulse-highlight');
+          setTimeout(() => elemento.classList.remove('pulse-highlight'), 2000);
+        }
+
+        // Atualizar etapas
+        const containers = Array.from(elemento.querySelectorAll('.etapa-container'));
+        containers.forEach((container, index) => {
+          const etapa = processo.etapas[index];
+          if (etapa) {
+            atualizarEtapaVisual(container, etapa, index, processo.etapas);
+          }
+        });
+      });
+    }
+
+    // Criar elemento DOM para um novo processo (card mobile)
+    function criarCardProcessoMobile(processo) {
+      const etapas = processo.etapas || [];
+
+      const tipoBadge = processo.tipo === 'coleta'
+        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200">Coleta</span>'
+        : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">Entrega</span>';
+
+      const encaixeBadge = processo.horario === '00:00'
+        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
+        : `<span>${processo.horario}</span>`;
+
+      let etapasHTML = '';
+      etapas.forEach((etapa, index) => {
+        const concluida = etapa.concluida;
+        const disponivel = etapa.disponivel;
+        const tipo = etapa.tipo || 'sequencial';
+
+        let circuloClasses = 'w-6 h-6 rounded-full flex items-center justify-center text-xs relative z-10 etapa-circulo transition-all duration-300 border-2';
+        let circuloContent = '';
+
+        if (concluida) {
+          if (tipo === 'independente' || (etapa.nome && (etapa.nome === 'Onda' || etapa.nome === 'Documentos' || etapa.nome === 'OD'))) {
+            circuloClasses += ' bg-sky-500 border-sky-600 text-white';
+          } else {
+            circuloClasses += ' bg-emerald-500 border-emerald-600 text-white';
+          }
+          circuloContent = '<i class="bi bi-check text-xs"></i>';
+        } else if (disponivel && tipo === 'sequencial') {
+          circuloClasses += ' bg-sky-500 border-sky-600 text-white';
+          circuloContent = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+        } else {
+          circuloClasses += ' bg-slate-200 border-slate-300 text-slate-400';
+          circuloContent = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+        }
+
+        const linhaHTML = index < etapas.length - 1
+          ? `<div class="absolute top-3 left-4 w-full h-0.5 etapa-linha bg-gray-200 z-0" style="width: calc(100% - 1rem);">
+                   <div class="etapa-linha-preenchimento h-full ${concluida ? 'bg-emerald-500 w-full' : 'bg-sky-600 w-0'}"></div>
+                 </div>`
+          : '';
+
+        const horarioHTML = concluida && etapa.data
+          ? `<span class="text-xs mt-0.5 text-emerald-600 font-semibold">${new Date(etapa.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Cuiaba' })}</span>`
+          : '<span class="text-xs mt-0.5 opacity-0">--</span>';
+
+        etapasHTML += `
+            <div class="flex flex-col items-center flex-1 relative etapa-container" 
+                 data-etapa-index="${index}" 
+                 data-etapa-concluida="${concluida}"
+                 data-etapa-nome="${etapa.nome || ''}">
+              ${linhaHTML}
+              <div class="${circuloClasses}">
+                ${circuloContent}
+              </div>
+              <span class="text-xs mt-1.5 text-slate-600 text-center font-medium">${(etapa.nome || '').substring(0, 8)}</span>
+              ${horarioHTML}
+            </div>`;
+      });
+
+      const card = document.createElement('div');
+      card.className = 'processo-item p-5 hover:bg-slate-50 transition-colors';
+      card.setAttribute('data-status', processo.status_geral);
+      card.setAttribute('data-prioridade', processo.prioridade || 6);
+      card.setAttribute('data-id', processo.id);
+      card.setAttribute('data-horario', processo.horario || '00:00');
+      card.setAttribute('data-ultima-atualizacao', Date.now().toString());
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-base font-semibold text-slate-900">${processo.ordem}</span>
+              ${tipoBadge}
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1.5">
+                  <i class="bi bi-person text-slate-400"></i>
+                  <span class="text-slate-900 font-medium">${(processo.motorista || '').substring(0, 20)}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <i class="bi bi-truck text-slate-400"></i>
+                  <span class="text-slate-700 font-mono">${processo.placa}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-4 text-slate-600">
+                ${encaixeBadge}
+                <span>${(processo.transportadora || '').substring(0, 20)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4">
+          <div class="flex justify-between items-center relative" data-processo-id="${processo.id}">
+            ${etapasHTML}
+          </div>
+        </div>`;
+
+      return card;
+    }
+
+    // Criar elemento DOM para um novo processo (linha tabela desktop)
+    function criarLinhaProcessoDesktop(processo) {
+      const etapas = processo.etapas || [];
+
+      const tipoBadge = processo.tipo === 'coleta'
+        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200">Coleta</span>'
+        : '<span class="px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">Entrega</span>';
+
+      const encaixeBadge = processo.horario === '00:00'
+        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
+        : processo.horario;
+
+      let etapasHTML = '';
+      etapas.forEach((etapa, index) => {
+        const concluida = etapa.concluida;
+        const disponivel = etapa.disponivel;
+        const tipo = etapa.tipo || 'sequencial';
+
+        let circuloClasses = 'w-8 h-8 rounded-full flex items-center justify-center text-xs relative z-10 etapa-circulo transition-all duration-300 border-2';
+        let circuloContent = '';
+
+        if (concluida) {
+          if (tipo === 'independente' || (etapa.nome && (etapa.nome === 'Onda' || etapa.nome === 'Documentos' || etapa.nome === 'OD'))) {
+            circuloClasses += ' bg-sky-500 border-sky-600 text-white';
+          } else {
+            circuloClasses += ' bg-emerald-500 border-emerald-600 text-white';
+          }
+          circuloContent = '<i class="bi bi-check text-sm"></i>';
+        } else if (disponivel && tipo === 'sequencial') {
+          circuloClasses += ' bg-sky-500 border-sky-600 text-white';
+          circuloContent = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+        } else if (tipo === 'independente' && concluida) {
+          circuloClasses += ' bg-emerald-500 border-emerald-600 text-white';
+          circuloContent = '<i class="bi bi-check text-sm"></i>';
+        } else if (tipo === 'independente') {
+          circuloClasses += ' bg-slate-200 border-slate-300 text-slate-500';
+          circuloContent = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+        } else {
+          circuloClasses += ' bg-slate-200 border-slate-300 text-slate-400';
+          circuloContent = `<span class="etapa-numero text-xs font-semibold">${index + 1}</span>`;
+        }
+
+        const isLast = index === etapas.length - 1;
+        const linhaHTML = !isLast
+          ? `<div class="absolute top-4 left-8 w-full h-0.5 etapa-linha bg-gray-200 z-0" style="width: calc(100% + 1rem);">
+                   <div class="etapa-linha-preenchimento h-full ${concluida ? 'bg-emerald-500 w-full' : 'bg-sky-600 w-0'}"></div>
+                 </div>`
+          : '';
+
+        const horarioHTML = concluida && etapa.data
+          ? `<span class="text-xs mt-1 text-emerald-600 font-semibold">${new Date(etapa.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Cuiaba' })}</span>`
+          : '<span class="text-xs mt-1 opacity-0">--</span>';
+
+        etapasHTML += `
+            <div class="flex flex-col items-center relative ${!isLast ? 'mr-4' : ''} etapa-container" 
+                 data-etapa-index="${index}" 
+                 data-etapa-concluida="${concluida}"
+                 data-etapa-nome="${etapa.nome || ''}">
+              ${linhaHTML}
+              <div class="${circuloClasses}">
+                ${circuloContent}
+              </div>
+              <span class="text-xs mt-2 text-slate-600 text-center font-medium min-w-[60px]">${(etapa.nome || '').substring(0, 10)}</span>
+              ${horarioHTML}
+            </div>`;
+      });
+
+      const row = document.createElement('tr');
+      row.className = 'processo-item hover:bg-slate-50 transition-colors';
+      row.setAttribute('data-status', processo.status_geral);
+      row.setAttribute('data-prioridade', processo.prioridade || 6);
+      row.setAttribute('data-id', processo.id);
+      row.setAttribute('data-horario', processo.horario || '00:00');
+      row.setAttribute('data-ultima-atualizacao', Date.now().toString());
+
+      row.innerHTML = `
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm font-semibold text-slate-900">${processo.ordem}</div>
+          <div class="mt-1">${tipoBadge}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm font-semibold text-slate-900">${processo.motorista || ''}</div>
+          <div class="text-sm text-slate-700 font-mono mt-1">${processo.placa}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm font-semibold text-slate-900">${processo.data || ''}</div>
+          <div class="text-sm text-slate-600">${encaixeBadge}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm text-slate-900">${processo.transportadora || ''}</div>
+          <div class="text-xs text-slate-500 mt-1">${processo.peso || 0} kg</div>
+        </td>
+        <td class="px-6 py-4">
+          <div class="flex items-center relative" data-processo-id="${processo.id}">
+            ${etapasHTML}
+          </div>
+        </td>`;
+
+      return row;
+    }
+
+    // Função principal de atualização do painel
+    function atualizarPainel(processos, estatisticas) {
+      console.log(`📊 Atualizando painel: ${processos.length} processos`);
+
+      if (primeiraCarga) {
+        console.log('🔵 Primeira carga - inicializando estado');
+        processos.forEach(p => {
+          estadoProcessos.set(String(p.id), {
+            status_geral: p.status_geral,
+            etapas: JSON.parse(JSON.stringify(p.etapas || [])),
+            timestamp: Date.now()
+          });
+        });
+        atualizarEstatisticas(estatisticas);
+        primeiraCarga = false;
+        return;
+      }
+
+      let houveMudancaGlobal = false;
+      const processosAtualizados = [];
+      const processosNovos = [];
+
+      processos.forEach(processo => {
+        const processoId = String(processo.id);
+        const estadoAnterior = estadoProcessos.get(processoId);
+
+        // Se não existe no estado, é um processo novo
+        if (!estadoAnterior) {
+          console.log(`✨ Novo processo detectado: ${processoId}`);
+          processosNovos.push(processo);
+          houveMudancaGlobal = true;
+
+          // Adicionar ao estado
+          estadoProcessos.set(processoId, {
+            status_geral: processo.status_geral,
+            etapas: JSON.parse(JSON.stringify(processo.etapas || [])),
+            timestamp: Date.now()
+          });
+          return;
+        }
+
+        const estadoAtual = {
+          status_geral: processo.status_geral,
+          etapas: JSON.parse(JSON.stringify(processo.etapas || [])),
+          timestamp: Date.now()
+        };
+
+        const comparacao = compararProcessos(estadoAnterior, estadoAtual);
+
+        if (comparacao.mudou) {
+          console.log(`🔄 Processo ${processoId} atualizado: ${comparacao.motivo} -> Forçando Reload`);
+
+          // Reload Universal: Qualquer mudança força refresh para garantir consistência visual e ordenação do backend
+          if (!window.reloadAgendado) {
+            window.reloadAgendado = true;
+            reproduzirSomAtualizacao();
+            setTimeout(() => window.location.reload(), 2000);
+          }
+          return;
+        }
+
+        atualizarProcessoDOM(processo, false);
+
+        // Atualizar estado
+        estadoProcessos.set(processoId, estadoAtual);
+      });
+
+      // Remover processos que não estão mais na lista
+      const processosIdsAtuais = new Set(processos.map(p => String(p.id)));
+      const processosParaRemover = [];
+
+      estadoProcessos.forEach((estado, processoId) => {
+        if (!processosIdsAtuais.has(processoId)) {
+          processosParaRemover.push(processoId);
+        }
+      });
+
+      if (processosParaRemover.length > 0) {
+        console.log(`🗑️ Removendo ${processosParaRemover.length} processo(s) que não estão mais na lista`);
+        processosParaRemover.forEach(processoId => {
+          // Remover do estado
+          estadoProcessos.delete(processoId);
+
+          // Remover do DOM
+          const elementos = document.querySelectorAll(`[data-id="${processoId}"]`);
+          elementos.forEach(el => el.remove());
+        });
+        houveMudancaGlobal = true;
+      }
+
+      // Adicionar novos processos ao DOM
+      if (processosNovos.length > 0) {
+        console.log(`🆕 Adicionando ${processosNovos.length} processo(s) novo(s) ao DOM`);
+
+        processosNovos.forEach(processo => {
+          // Adicionar card mobile
+          const cardsContainer = document.querySelector('.block.md\\:hidden .divide-y');
+          if (cardsContainer) {
+            const card = criarCardProcessoMobile(processo);
+            cardsContainer.insertBefore(card, cardsContainer.firstChild);
+          }
+
+          // Adicionar linha tabela desktop
+          const tbody = document.getElementById('tabela-processos');
+          if (tbody) {
+            const row = criarLinhaProcessoDesktop(processo);
+            tbody.insertBefore(row, tbody.firstChild);
+          }
+        });
+
+        // Tocar som para novos processos
+        reproduzirSomAtualizacao();
+      }
+
+      // Tocar som e reordenar se houve mudança
+      if (houveMudancaGlobal) {
+        console.log(`🚨 ${processosAtualizados.length} processo(s) atualizado(s), ${processosNovos.length} novo(s), ${processosParaRemover.length} removido(s)`);
+        if (processosNovos.length === 0 && processosParaRemover.length === 0) {
+          reproduzirSomAtualizacao();
+        }
+        setTimeout(() => reordenarLista(), 200);
+      }
+
+      atualizarEstatisticas(estatisticas);
+    }
+
+    // Função para atualizar estatísticas no DOM
+    function atualizarEstatisticas(stats) {
+      if (!stats) return;
+
+      const updateText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el && el.textContent !== String(value)) {
+          el.textContent = value;
+          // Efeito visual de atualização
+          el.classList.add('text-emerald-600');
+          setTimeout(() => el.classList.remove('text-emerald-600'), 1000);
+        }
+      };
+
+      updateText('count-coletas', stats.coletas || 0);
+      updateText('count-entregas', stats.entregas || 0);
+      updateText('count-veiculos', stats.veiculos || 0);
+      updateText('count-concluidos', stats.concluidos || 0);
+
+      // Formatar peso total
+      const pesoEl = document.getElementById('peso-total');
+      if (pesoEl) {
+        const pesoNovo = stats.peso_total || 0;
+        // Remover formatação antiga da string atual para comparar (se possível) ou apenas formatar nova
+        const pesoFormatado = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(pesoNovo);
+
+        if (pesoEl.textContent !== pesoFormatado) {
+          pesoEl.textContent = pesoFormatado;
+          pesoEl.classList.add('text-emerald-600');
+          setTimeout(() => el.classList.remove('text-emerald-600'), 1000);
+        }
+      }
+    }
+
+    // Reordenar lista - mais recentes em cima
+    function reordenarLista() {
+      const compararProcessos = (a, b) => {
+        // Primeiro: por última atualização (mais recente primeiro - ordem decrescente)
+        const atualizadoA = parseInt(a.getAttribute('data-ultima-atualizacao') || '0');
+        const atualizadoB = parseInt(b.getAttribute('data-ultima-atualizacao') || '0');
+
+        if (atualizadoA !== atualizadoB) {
+          return atualizadoB - atualizadoA; // Mais recente primeiro
+        }
+
+        // Segundo: por prioridade (menor número = maior prioridade)
+        const prioridadeA = parseInt(a.getAttribute('data-prioridade') || '6');
+        const prioridadeB = parseInt(b.getAttribute('data-prioridade') || '6');
+
+        if (prioridadeA !== prioridadeB) {
+          return prioridadeA - prioridadeB;
+        }
+
+        // Terceiro: por horário (mais cedo primeiro)
+        const horarioA = a.getAttribute('data-horario') || '00:00';
+        const horarioB = b.getAttribute('data-horario') || '00:00';
+        return horarioA.localeCompare(horarioB);
+      };
+
+      // Reordenar cards mobile
+      const cardsContainer = document.querySelector('.block.md\\:hidden .divide-y');
+      if (cardsContainer) {
+        const cards = Array.from(cardsContainer.querySelectorAll('.processo-item'));
+        cards.sort(compararProcessos);
+        cardsContainer.innerHTML = '';
+        cards.forEach(card => cardsContainer.appendChild(card));
+      }
+
+      // Reordenar tabela desktop
+      const tbody = document.getElementById('tabela-processos');
+      if (tbody) {
+        const rows = Array.from(tbody.querySelectorAll('.processo-item'));
+        rows.sort(compararProcessos);
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+      }
+    }
+
+    // Verificar atualizações do servidor
+    function verificarAtualizacoesAutomaticas() {
+      if (verificandoAtualizacoes) {
+        return;
+      }
+
+      verificandoAtualizacoes = true;
+      const dataFiltro = new URLSearchParams(window.location.search).get('data') || '';
+      const url = '/rondonopolis/processos/verificar-atualizacoes/' + (dataFiltro ? `?data=${dataFiltro}` : '');
+
+      fetch(url, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      })
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(data => {
+          verificandoAtualizacoes = false;
+          if (data.success) {
+            atualizarPainel(data.processos, data.estatisticas);
+          } else {
+            console.warn('Resposta não bem-sucedida:', data);
+          }
+        })
+        .catch(error => {
+          verificandoAtualizacoes = false;
+          console.error('Erro ao verificar atualizações:', error);
+        });
+    }
+
+    // Funções de modal de impressão
+    function abrirPreviaImpressao(id) {
+      fetch(`/rondonopolis/portaria/documento-impressao/?id=${id}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            document.getElementById('conteudo-impressao').innerHTML = d.html;
+            document.getElementById('modal-impressao').classList.remove('hidden');
+          } else {
+            alert('Erro ao carregar documento: ' + (d.error || 'Erro desconhecido'));
+          }
+        })
+        .catch(() => alert('Erro de conexão ao carregar documento'));
+    }
+
+    function fecharModalImpressao() {
+      document.getElementById('modal-impressao').classList.add('hidden');
+    }
+
+    function imprimirDocumento() {
+      const conteudo = document.getElementById('conteudo-impressao').innerHTML;
+      const win = window.open('', '', 'width=900,height=700');
+      win.document.write(`<!DOCTYPE html><html><head><title>Impressão</title><style>@media print { body { margin: 0; } }</style></head><body onload="window.print(); setTimeout(() => window.close(), 500);">${conteudo}</body></html>`);
+      win.document.close();
+    }
+
+    function salvarComoPDF() {
+      imprimirDocumento();
+      alert('Use "Salvar como PDF" na janela de impressão');
+    }
+
+    // Inicialização quando o DOM estiver pronto
+    document.addEventListener('DOMContentLoaded', function () {
+      // Preparar áudio para reprodução futura
+      const audio = document.getElementById('audioAtualizacao');
+      if (audio) {
+        audio.load();
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }).catch(() => { });
+      }
+
+      // Inicializar estado dos processos do DOM
+      document.querySelectorAll('.processo-item').forEach(item => {
+        const id = String(item.getAttribute('data-id'));
+        const status = item.getAttribute('data-status');
+        const etapasData = [];
+
+        const containers = item.querySelectorAll('.etapa-container');
+        containers.forEach(container => {
+          etapasData.push({
+            concluida: container.getAttribute('data-etapa-concluida') === 'true',
+            nome: container.getAttribute('data-etapa-nome') || '',
+            disponivel: true,
+            tipo: 'sequencial'
+          });
+        });
+
+        estadoProcessos.set(id, {
+          status_geral: status,
+          etapas: etapasData,
+          timestamp: parseInt(item.getAttribute('data-ultima-atualizacao') || '0')
+        });
+      });
+
+      console.log('✅ Estado inicial carregado:', estadoProcessos.size, 'processos');
+
+      // Ordenar inicialmente
+      setTimeout(() => reordenarLista(), 100);
+
+      // Iniciar atualizações automáticas após 2 segundos
+      setTimeout(() => {
+        verificarAtualizacoesAutomaticas();
+        setInterval(verificarAtualizacoesAutomaticas, 3000);
+      }, 2000);
+    });
+  </script>
+
+  <!-- Nota: No mobile, usuários são redirecionados para abas do menu mobile, então este painel não deve aparecer no mobile -->
+</body>
+
+</html>

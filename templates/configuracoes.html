@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurações{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white border border-slate-200 rounded-xl shadow p-6">
+  <h1 class="text-2xl font-bold mb-6 text-slate-800">Configurações do Dashboard</h1>
+  
+  <form method="POST" class="space-y-4">
+    {% csrf_token %}
+    
+    <div>
+      <label class="block mb-2 text-slate-700 font-medium">Escolha o tema do dashboard:</label>
+      <div class="space-y-2">
+        <label class="flex items-center space-x-2">
+          <input type="radio" name="tema" value="claro" {% if tema == 'claro' %}checked{% endif %}>
+          <span>Tema Claro</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input type="radio" name="tema" value="escuro" {% if tema == 'escuro' %}checked{% endif %}>
+          <span>Tema Escuro</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input type="radio" name="tema" value="azul" {% if tema == 'azul' %}checked{% endif %}>
+          <span>Tema Azul</span>
+        </label>
+      </div>
+    </div>
+
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+      Salvar Tema
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,1186 @@
+{% extends 'base.html' %}
+
+{% block title %}Processos - Operação Santos{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-sky-600"></span>
+    <h1 class="text-2xl font-semibold text-gray-900">Operação Porto de Santos</h1>
+  </div>
+  <div id="botoes-acoes" class="flex gap-2 w-full md:w-auto">
+    <button onclick="openCreateModal()" class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-base px-5 py-2.5 rounded-md shadow">
+      <i class="bi bi-plus-lg text-lg"></i> Incluir Processo
+    </button>
+
+    <a href="{% url 'exportar_processos' %}" class="flex items-center gap-2 border border-gray-300 text-gray-700 text-base px-4 py-2.5 rounded-md bg-white hover:bg-gray-50 shadow-sm">
+      <i class="bi bi-box-arrow-up text-lg"></i> Exportar
+    </a>
+  </div>
+</div>
+
+<!-- Abas para alternar entre Listagem e Dashboard -->
+<div class="mb-6">
+  <div class="border-b border-gray-200">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+      <button id="tab-listagem" class="tab-button border-b-2 border-sky-600 text-sky-600 px-1 py-2 font-medium text-sm" onclick="switchTab('listagem')">Listagem</button>
+      <button id="tab-dashboard" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-1 py-2 font-medium text-sm" onclick="switchTab('dashboard')">Dashboard</button>
+    </nav>
+  </div>
+</div>
+
+<!-- Conteúdo da Aba Listagem -->
+<div id="conteudo-listagem" class="tab-content">
+  <!-- Filtros para mobile -->
+  <div class="sm:hidden space-y-3 mb-4">
+    <div class="relative w-full">
+      <input type="text" id="mobileProcessoFilter" placeholder="Filtrar processos..." 
+             class="text-sm border border-gray-300 rounded px-3 py-2 w-full focus:ring-blue-500 focus:border-blue-500 pl-10">
+      <i class="bi bi-search absolute left-3 top-3 text-gray-400"></i>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Filtro de Destino para mobile -->
+      <div class="relative">
+        <button id="mobileDestinoFilterButton" class="w-full flex items-center justify-between border border-gray-300 rounded px-3 py-2 bg-white text-sm">
+          <span>Destino</span>
+          <i class="bi bi-caret-down-fill text-gray-500 text-xs"></i>
+        </button>
+        <div id="mobileDestinoFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
+          <div class="py-1 max-h-60 overflow-y-auto">
+            {% for destino in destinos|dictsort:"nome" %}
+            <div class="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+              <input type="checkbox" id="mobile-filter-{{ destino.id }}" value="{{ destino.id }}" class="mobile-destino-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+              <label for="mobile-filter-{{ destino.id }}" class="text-sm text-gray-700">{{ destino.nome }}</label>
+            </div>
+            {% endfor %}
+            <div class="px-3 py-2 border-t border-gray-100 flex justify-between">
+              <button id="mobileApplyDestinoFilter" class="text-xs bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700">
+                Aplicar
+              </button>
+              <button id="mobileClearDestinoFilter" class="text-xs text-gray-600 px-3 py-1 rounded hover:bg-gray-100">
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Filtro de Status para mobile -->
+      <div class="relative">
+        <button id="mobileStatusFilterButton" class="w-full flex items-center justify-between border border-gray-300 rounded px-3 py-2 bg-white text-sm">
+          <span>Status</span>
+          <i class="bi bi-caret-down-fill text-gray-500 text-xs"></i>
+        </button>
+        <div id="mobileStatusFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
+          <div class="py-1">
+            <div class="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+              <input type="checkbox" id="mobile-filter-liberado" value="liberado" class="mobile-status-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+              <label for="mobile-filter-liberado" class="text-sm text-gray-700">Liberado</label>
+            </div>
+            <div class="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+              <input type="checkbox" id="mobile-filter-aguardando" value="aguardando" class="mobile-status-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+              <label for="mobile-filter-aguardando" class="text-sm text-gray-700">Aguardando</label>
+            </div>
+            <div class="px-3 py-2 border-t border-gray-100 flex justify-between">
+              <button id="mobileApplyStatusFilter" class="text-xs bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700">
+                Aplicar
+              </button>
+              <button id="mobileClearStatusFilter" class="text-xs text-gray-600 px-3 py-1 rounded hover:bg-gray-100">
+                Limpar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela para desktop -->
+  <div class="hidden sm:block bg-white rounded-md overflow-hidden">
+    <table class="min-w-full text-[15px]">
+      <thead>
+        <tr class="text-gray-800 text-sm border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-3 px-4 text-left font-medium" style="min-width: 180px;">
+            <div class="flex items-center gap-2">
+             <span class="whitespace-nowrap">PROCESSO</span>
+             <div class="relative w-28">
+                <input type="text" id="processoFilterInput" placeholder="Filtrar..."
+               class="text-xs border border-gray-300 rounded px-2 py-1 w-full focus:ring-blue-500 focus:border-blue-500 pl-7 h-8">
+            <i class="bi bi-search absolute left-2 top-2 text-gray-400 text-xs"></i>
+            </div>
+            </div>
+          </th>
+          <th class="py-3 px-4 text-left font-medium relative">
+            <div class="flex items-center gap-1">
+              DESTINO
+              <button id="destinoFilterButton" class="w-5 h-5 flex items-center justify-center border border-gray-300 rounded bg-white shadow-inner">
+                <i class="bi bi-caret-down-fill text-gray-500 text-[10px]"></i>
+              </button>
+            </div>
+          </th>
+          <th class="py-3 px-4 text-left font-medium">QUANTIDADE</th>
+          <th class="py-3 px-4 text-left font-medium">DATA DE CRIAÇÃO</th>
+          <th class="py-3 px-4 text-left font-medium relative">
+            <div class="flex items-center gap-1">
+              STATUS
+              <button id="statusFilterButton" class="w-5 h-5 flex items-center justify-center border border-gray-300 rounded bg-white shadow-inner">
+                <i class="bi bi-caret-down-fill text-gray-500 text-[10px]"></i>
+              </button>
+            </div>
+          </th>
+          <th class="py-3 px-4 text-left font-medium">OBSERVAÇÃO</th>
+          <th class="py-3 px-4 text-left font-medium">AÇÕES</th>
+        </tr>
+      </thead>
+      <tbody id="lancamentosTableBody">
+        {% for lancamento in lancamentos %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50" data-destino="{{ lancamento.destino.id }}" data-status="{{ lancamento.status }}">
+          <td class="py-4 px-4 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-sky-600 rounded-full"></span>
+              {{ lancamento.po }}
+            </div>
+          </td>
+          <td class="py-4 px-4 text-gray-800">{{ lancamento.destino.nome }}</td>
+          <td class="py-4 px-4">{{ lancamento.quantidade }}</td>
+          <td class="py-4 px-4">{{ lancamento.criado_em|date:"d/m/Y" }}</td>
+          <td class="py-4 px-4">
+            {% if lancamento.status == 'liberado' %}
+              <span class="inline-flex items-center px-2 py-[2px] rounded-full text-green-700 bg-[#EAFBF0] text-sm font-medium border border-green-100">
+                <i class="bi bi-check-circle-fill text-sm mr-1"></i> Liberado
+              </span>
+            {% elif lancamento.status == 'aguardando' %}
+              <span class="inline-flex items-center px-2 py-[2px] rounded-full text-yellow-700 bg-yellow-50 text-sm font-medium border border-yellow-100">
+                <i class="bi bi-clock-fill text-sm mr-1"></i> Aguardando
+              </span>
+            {% endif %}
+          </td>
+          <td class="py-4 px-4 text-gray-500 text-sm">
+            {{ lancamento.observacao|truncatechars:20|default:"-" }}
+          </td>
+          <td class="py-4 px-4">
+            <div class="flex gap-2">
+              <button onclick="openEditModal('{% url 'lancamento_update' lancamento.id %}', '{{ lancamento.po }}', '{{ lancamento.destino.id }}', '{{ lancamento.quantidade }}', '{{ lancamento.status }}', '{{ lancamento.observacao|escapejs }}', '{{ lancamento.id }}')" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded text-sm">
+                Editar
+              </button>
+              <button onclick="openDeleteModal('{% url 'lancamento_delete' lancamento.id %}', '{{ lancamento.po }}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm">
+                Excluir
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="py-6 text-center text-gray-400 text-[15px]">Nenhum lançamento encontrado</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Cards para mobile -->
+  <div class="sm:hidden space-y-3">
+    {% for lancamento in lancamentos %}
+    <div class="bg-white rounded-lg shadow p-4 border border-gray-100" data-destino="{{ lancamento.destino.id }}" data-status="{{ lancamento.status }}">
+      <div class="flex justify-between items-start">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 bg-sky-600 rounded-full"></span>
+          <h3 class="font-medium text-gray-900">{{ lancamento.po }}</h3>
+        </div>
+        <div>
+          {% if lancamento.status == 'liberado' %}
+            <span class="inline-flex items-center px-2 py-[2px] rounded-full text-green-700 bg-[#EAFBF0] text-xs font-medium border border-green-100">
+              <i class="bi bi-check-circle-fill text-xs mr-1"></i> Liberado
+            </span>
+          {% elif lancamento.status == 'aguardando' %}
+            <span class="inline-flex items-center px-2 py-[2px] rounded-full text-yellow-700 bg-yellow-50 text-xs font-medium border border-yellow-100">
+              <i class="bi bi-clock-fill text-xs mr-1"></i> Aguardando
+            </span>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="mt-3 grid grid-cols-2 gap-y-2 text-sm">
+        <div>
+          <p class="text-gray-500 text-xs">Destino</p>
+          <p class="text-gray-800">{{ lancamento.destino.nome }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs">Quantidade</p>
+          <p class="text-gray-800">{{ lancamento.quantidade }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs">Data</p>
+          <p class="text-gray-800">{{ lancamento.criado_em|date:"d/m/Y" }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs">Observação</p>
+          <p class="text-gray-800">{{ lancamento.observacao|truncatechars:15|default:"-" }}</p>
+        </div>
+      </div>
+      
+      <div class="mt-3 flex gap-2">
+        <button onclick="openEditModal('{% url 'lancamento_update' lancamento.id %}', '{{ lancamento.po }}', '{{ lancamento.destino.id }}', '{{ lancamento.quantidade }}', '{{ lancamento.status }}', '{{ lancamento.observacao|escapejs }}', '{{ lancamento.id }}')" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1 rounded text-xs flex-1">
+          Editar
+        </button>
+        <button onclick="openDeleteModal('{% url 'lancamento_delete' lancamento.id %}', '{{ lancamento.po }}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs flex-1">
+          Excluir
+        </button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-lg shadow p-6 text-center text-gray-400">
+      Nenhum lançamento encontrado
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Conteúdo da Aba Dashboard -->
+<div id="conteudo-dashboard" class="tab-content hidden">
+  <!-- Estatísticas Gerais (por QUANTIDADE) -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">Quantidade Total</p>
+          <h3 class="text-2xl font-bold text-gray-900">{{ total_geral_quantidade }}</h3>
+          <p class="text-xs text-gray-500 mt-1">{{ lancamentos.count }} processos</p>
+        </div>
+        <div class="p-3 bg-blue-50 rounded-full">
+          <i class="bi bi-box-seam text-blue-600 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">Quantidade Liberada</p>
+          <h3 class="text-2xl font-bold text-green-600">{{ total_liberado_quantidade }}</h3>
+          <p class="text-xs text-gray-500 mt-1">{{ total_liberado }} processos liberados</p>
+        </div>
+        <div class="p-3 bg-green-50 rounded-full">
+          <i class="bi bi-check-circle text-green-600 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">Quantidade Aguardando</p>
+          <h3 class="text-2xl font-bold text-yellow-600">{{ total_aguardando_quantidade }}</h3>
+          <p class="text-xs text-gray-500 mt-1">{{ lancamentos_aguardando.count }} processos aguardando</p>
+        </div>
+        <div class="p-3 bg-yellow-50 rounded-full">
+          <i class="bi bi-clock text-yellow-600 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráficos e Visualizações -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Gráfico de Status (por QUANTIDADE) -->
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Distribuição por Status</h3>
+      <div class="h-64 flex items-center justify-center">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+    
+    <!-- Gráfico de Destinos (por QUANTIDADE) -->
+    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Quantidade por Destino</h3>
+      <div class="h-64 flex items-center justify-center">
+        <canvas id="destinoChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela Resumo (por QUANTIDADE) -->
+  <div class="bg-white p-6 rounded-lg shadow border border-gray-100 mt-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Resumo por Destino</h3>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-200">
+            <th class="py-3 px-4 text-left font-medium text-gray-700">Destino</th>
+            <th class="py-3 px-4 text-left font-medium text-gray-700">Total</th>
+            <th class="py-3 px-4 text-left font-medium text-gray-700">Liberado</th>
+            <th class="py-3 px-4 text-left font-medium text-gray-700">Aguardando</th>
+            <th class="py-3 px-4 text-left font-medium text-gray-700">% Liberado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for estatistica in destinos_com_estatisticas %}
+          <tr class="border-b border-gray-100 hover:bg-gray-50">
+            <td class="py-3 px-4">{{ estatistica.destino.nome }}</td>
+            <td class="py-3 px-4 font-medium">{{ estatistica.total_quantidade }}</td>
+            <td class="py-3 px-4 text-green-600 font-medium">{{ estatistica.liberados_quantidade }}</td>
+            <td class="py-3 px-4 text-yellow-600 font-medium">{{ estatistica.aguardando_quantidade }}</td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="bg-green-600 h-2 rounded-full" style="width: {{ estatistica.percentual }}%"></div>
+                </div>
+                <span class="text-sm text-gray-600 font-medium">{{ estatistica.percentual }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Dropdown de filtro de destino (desktop) -->
+<div id="destinoFilterDropdown" class="hidden absolute z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+  <div class="py-1">
+    <div class="px-4 py-2 border-b border-gray-100">
+      <p class="text-sm font-medium text-gray-700">Filtrar por destino</p>
+    </div>
+    {% for destino in destinos|dictsort:"nome" %}
+    <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+      <input type="checkbox" id="filter-{{ destino.id }}" value="{{ destino.id }}" class="destino-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+      <label for="filter-{{ destino.id }}" class="text-sm text-gray-700">{{ destino.nome }}</label>
+    </div>
+    {% endfor %}
+    <div class="px-4 py-2 border-t border-gray-100 flex justify-between">
+      <button id="applyDestinoFilter" class="text-xs bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700">
+        Aplicar
+      </button>
+      <button id="clearDestinoFilter" class="text-xs text-gray-600 px-3 py-1 rounded hover:bg-gray-100">
+        Limpar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Dropdown de filtro de status (desktop) -->
+<div id="statusFilterDropdown" class="hidden absolute z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+  <div class="py-1">
+    <div class="px-4 py-2 border-b border-gray-100">
+      <p class="text-sm font-medium text-gray-700">Filtrar por status</p>
+    </div>
+    <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+      <input type="checkbox" id="filter-liberado" value="liberado" class="status-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+      <label for="filter-liberado" class="text-sm text-gray-700">Liberado</label>
+    </div>
+    <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+      <input type="checkbox" id="filter-aguardando" value="aguardando" class="status-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+      <label for="filter-aguardando" class="text-sm text-gray-700">Aguardando</label>
+    </div>
+    <div class="px-4 py-2 border-t border-gray-100 flex justify-between">
+      <button id="applyStatusFilter" class="text-xs bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700">
+        Aplicar
+      </button>
+      <button id="clearStatusFilter" class="text-xs text-gray-600 px-3 py-1 rounded hover:bg-gray-100">
+        Limpar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600/75 flex items-center justify-center z-[9999] backdrop-blur-sm">
+  <div class="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center min-w-[300px]">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-600 mb-4"></div>
+    <p class="text-gray-700 font-medium">Processando sua solicitação...</p>
+    <p class="text-sm text-gray-500 mt-1">Por favor, aguarde alguns instantes</p>
+  </div>
+</div>
+
+<!-- Modal de Criação (INCLUIR) -->
+<div id="createModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Novo Processo</h1>
+      </div>
+      <button onclick="closeModal('createModal')" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form method="post" action="{% url 'lancamento_create' %}" onsubmit="showLoading()">
+      {% csrf_token %}
+      <div class="p-6 space-y-4">
+        <div>
+          <label for="create-po" class="block text-sm font-medium text-gray-700 mb-1">Processo</label>
+          <input type="text" id="create-po" name="po" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+          <div id="po-error" class="text-red-500 text-sm mt-1 hidden"></div>
+        </div>
+        <div>
+          <label for="create-destino" class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+          <select id="create-destino" name="destino" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+            <option value="">Selecione um destino</option>
+            {% for destino in destinos|dictsort:"nome" %}
+            <option value="{{ destino.id }}">{{ destino.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="create-quantidade" class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+          <input type="number" id="create-quantidade" name="quantidade" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+        </div>
+        <div>
+          <label for="create-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select id="create-status" name="status" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+            <option value="liberado">Liberado</option>
+            <option value="aguardando" selected>Aguardando</option>
+          </select>
+        </div>
+        <div>
+          <label for="create-observacao" class="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+          <textarea id="create-observacao" name="observacao" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="closeModal('createModal')" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" id="submit-button" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+          Salvar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de Edição (EDITAR) -->
+<div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Editar Processo</h1>
+      </div>
+      <button onclick="closeModal('editModal')" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="editForm" method="post" onsubmit="showLoading()">
+      {% csrf_token %}
+      <div class="p-6 space-y-4">
+        <div>
+          <label for="edit-po" class="block text-sm font-medium text-gray-700 mb-1">Processo</label>
+          <input type="text" id="edit-po" name="po" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+        </div>
+        <div>
+          <label for="edit-destino" class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+          <select id="edit-destino" name="destino" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+            {% for destino in destinos|dictsort:"nome" %}
+            <option value="{{ destino.id }}">{{ destino.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="edit-quantidade" class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+          <input type="number" id="edit-quantidade" name="quantidade" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+        </div>
+        <div>
+          <label for="edit-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select id="edit-status" name="status" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500" required>
+            <option value="liberado">Liberado</option>
+            <option value="aguardando">Aguardando</option>
+            <option value="finalizado">Finalizado</option>
+          </select>
+        </div>
+        <div>
+          <label for="edit-observacao" class="block text-sm font-medium text-gray-700 mb-1">Observação</label>
+          <textarea id="edit-observacao" name="observacao" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+          Salvar Alterações
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de Exclusão (EXCLUIR) -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Confirmar Exclusão</h1>
+      </div>
+      <button onclick="closeModal('deleteModal')" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="deleteForm" method="post" onsubmit="showLoading()">
+      {% csrf_token %}
+      <input type="hidden" name="_method" value="DELETE">
+      <div class="p-6">
+        <p class="text-gray-700">Você tem certeza que deseja excluir o Processo N° <span id="deleteItemName" class="font-semibold"></span>?</p>
+        <p class="text-sm text-gray-500 mt-2">Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="closeModal('deleteModal')" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-white bg-red-600 hover:bg-red-700">
+          Confirmar Exclusão
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Função para alternar entre as abas
+function switchTab(tabName) {
+    // Esconder todos os conteúdos
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remover estilo ativo de todas as abas
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('border-sky-600', 'text-sky-600');
+        button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    });
+    
+    // Mostrar conteúdo da aba selecionada
+    document.getElementById(`conteudo-${tabName}`).classList.remove('hidden');
+    
+    // Adicionar estilo ativo à aba selecionada
+    document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    document.getElementById(`tab-${tabName}`).classList.add('border-sky-600', 'text-sky-600');
+    
+    // Controlar visibilidade dos botões usando o ID
+    const botoesAcoes = document.getElementById('botoes-acoes');
+    if (botoesAcoes) {
+        if (tabName === 'dashboard') {
+            botoesAcoes.style.display = 'none';
+        } else {
+            botoesAcoes.style.display = 'flex';
+        }
+    }
+    
+    // Se for a aba dashboard, inicializar os gráficos
+    if (tabName === 'dashboard') {
+        initializeCharts();
+    }
+    
+    // Remover estilo ativo de todas as abas
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.classList.remove('border-sky-600', 'text-sky-600');
+      button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    });
+    
+    // Mostrar conteúdo da aba selecionada
+    document.getElementById(`conteudo-${tabName}`).classList.remove('hidden');
+    
+    // Adicionar estilo ativo à aba selecionada
+    document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+    document.getElementById(`tab-${tabName}`).classList.add('border-sky-600', 'text-sky-600');
+    
+    // Se for a aba dashboard, inicializar os gráficos
+    if (tabName === 'dashboard') {
+      initializeCharts();
+    }
+  }
+  
+  // Função para inicializar os gráficos do dashboard
+function initializeCharts() {
+    // Dados reais do Django (por QUANTIDADE)
+    const statusData = {
+        labels: ['Liberados', 'Aguardando'],
+        datasets: [{
+            data: [{{ total_liberado_quantidade }}, {{ total_aguardando_quantidade }}],
+            backgroundColor: ['#10b981', '#f59e0b'],
+            borderWidth: 0
+        }]
+    };
+    
+    // Preparar dados por destino (por QUANTIDADE)
+    const destinoLabels = [];
+    const destinoData = [];
+    
+    {% for estatistica in destinos_com_estatisticas %}
+        destinoLabels.push('{{ estatistica.destino.nome }}');
+        destinoData.push({{ estatistica.total_quantidade }});
+    {% endfor %}
+    
+    const destinoChartData = {
+        labels: destinoLabels,
+        datasets: [{
+            label: 'Quantidade',
+            data: destinoData,
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'],
+            borderWidth: 0
+        }]
+    };
+    
+    // Gráfico de pizza para status (quantidade)
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    if (window.statusChartInstance) {
+        window.statusChartInstance.destroy();
+    }
+    window.statusChartInstance = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: statusData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                            return `${label}: ${value} unidades (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de barras para destinos (quantidade)
+    const destinoCtx = document.getElementById('destinoChart').getContext('2d');
+    if (window.destinoChartInstance) {
+        window.destinoChartInstance.destroy();
+    }
+    window.destinoChartInstance = new Chart(destinoCtx, {
+        type: 'bar',
+        data: destinoChartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Quantidade'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Quantidade: ${context.raw} unidades`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+  
+  // Resto do código JavaScript existente...
+  // Variáveis para armazenar os filtros ativos
+  let activeDestinoFilters = [];
+  let activeStatusFilters = [];
+  let activeProcessoFilter = '';
+  let currentEditId = null;
+
+  // Função para verificar se a resposta é JSON
+  function isJsonResponse(response) {
+    const contentType = response.headers.get('content-type');
+    return contentType && contentType.includes('application/json');
+  }
+
+  // Funções para manipulação dos modais
+  function openCreateModal() {
+    document.getElementById('createModal').classList.remove('hidden');
+    // Resetar o formulário ao abrir
+    document.getElementById('create-po').value = '';
+    document.getElementById('create-destino').value = '';
+    document.getElementById('create-quantidade').value = '';
+    document.getElementById('create-status').value = 'aguardando';
+    document.getElementById('create-observacao').value = '';
+    document.getElementById('po-error').classList.add('hidden');
+    document.getElementById('submit-button').disabled = false;
+  }
+
+  function openEditModal(url, po, destinoId, quantidade, status, observacao, id) {
+    currentEditId = id;
+    document.getElementById('editForm').action = url;
+    document.getElementById('edit-po').value = po;
+    document.getElementById('edit-destino').value = destinoId;
+    document.getElementById('edit-quantidade').value = quantidade;
+    document.getElementById('edit-status').value = status;
+    document.getElementById('edit-observacao').value = observacao;
+    document.getElementById('editModal').classList.remove('hidden');
+  }
+
+  function openDeleteModal(url, nome) {
+    document.getElementById('deleteItemName').textContent = nome;
+    document.getElementById('deleteForm').action = url;
+    document.getElementById('deleteModal').classList.remove('hidden');
+  }
+
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+  }
+
+  // Mostrar loading overlay
+  function showLoading() {
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    document.body.style.pointerEvents = 'none';
+  }
+
+  // Esconder loading overlay
+  function hideLoading() {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    document.body.style.pointerEvents = 'auto';
+  }
+
+  // Função para resetar todos os filtros
+  function resetAllFilters() {
+    // Limpar filtro de processo
+    document.getElementById('processoFilterInput').value = '';
+    document.getElementById('mobileProcessoFilter').value = '';
+    activeProcessoFilter = '';
+    
+    // Limpar filtros de destino
+    document.querySelectorAll('.destino-filter-checkbox, .mobile-destino-filter-checkbox').forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    activeDestinoFilters = [];
+    
+    // Limpar filtros de status
+    document.querySelectorAll('.status-filter-checkbox, .mobile-status-filter-checkbox').forEach(checkbox => {
+      checkbox.checked = false;
+    });
+    activeStatusFilters = [];
+    
+    // Mostrar todas as linhas e cards
+    document.querySelectorAll('#lancamentosTableBody tr, .sm\\:hidden > div.bg-white').forEach(row => {
+      row.style.display = '';
+    });
+  }
+
+  // Função para aplicar os filtros combinados
+  function applyFilters() {
+    // Aplicar filtros na tabela (desktop)
+    const rows = document.querySelectorAll('#lancamentosTableBody tr');
+    rows.forEach(row => {
+      const processoText = row.querySelector('td:first-child .flex.items-center.gap-2').textContent.trim().toLowerCase();
+      const destinoId = row.getAttribute('data-destino');
+      const status = row.getAttribute('data-status');
+      
+      const processoMatch = !activeProcessoFilter || processoText.includes(activeProcessoFilter.toLowerCase());
+      const destinoMatch = activeDestinoFilters.length === 0 || activeDestinoFilters.includes(destinoId);
+      const statusMatch = activeStatusFilters.length === 0 || activeStatusFilters.includes(status);
+      
+      row.style.display = (processoMatch && destinoMatch && statusMatch) ? '' : 'none';
+    });
+
+    // Aplicar filtros nos cards (mobile)
+    const cards = document.querySelectorAll('.sm\\:hidden > div.bg-white');
+    cards.forEach(card => {
+      const processoText = card.querySelector('h3').textContent.trim().toLowerCase();
+      const destinoId = card.getAttribute('data-destino');
+      const status = card.getAttribute('data-status');
+      
+      const processoMatch = !activeProcessoFilter || processoText.includes(activeProcessoFilter.toLowerCase());
+      const destinoMatch = activeDestinoFilters.length === 0 || activeDestinoFilters.includes(destinoId);
+      const statusMatch = activeStatusFilters.length === 0 || activeStatusFilters.includes(status);
+      
+      card.style.display = (processoMatch && destinoMatch && statusMatch) ? '' : 'none';
+    });
+  }
+
+  // Função para atualizar a tabela via AJAX
+  function refreshTable() {
+    showLoading();
+    fetch(window.location.href, {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.text())
+    .then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const newTableBody = doc.getElementById('lancamentosTableBody');
+      const newCards = doc.querySelector('.sm\\:hidden');
+      
+      if (newTableBody) {
+        document.getElementById('lancamentosTableBody').innerHTML = newTableBody.innerHTML;
+      }
+      if (newCards) {
+        document.querySelector('.sm\\:hidden').innerHTML = newCards.innerHTML;
+      }
+      applyFilters();
+    })
+    .catch(error => {
+      console.error('Erro ao atualizar a tabela:', error);
+    })
+    .finally(() => {
+      hideLoading();
+    });
+  }
+
+  // Configurar event listeners para os forms
+  document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar a aba listagem como ativa
+    switchTab('listagem');
+    
+    // Filtro dinâmico para número do processo (desktop)
+    document.getElementById('processoFilterInput').addEventListener('input', function(e) {
+      activeProcessoFilter = e.target.value.trim();
+      applyFilters();
+    });
+
+    // Filtro dinâmico para número do processo (mobile)
+    document.getElementById('mobileProcessoFilter').addEventListener('input', function(e) {
+      activeProcessoFilter = e.target.value.trim();
+      applyFilters();
+    });
+
+    // Configurar os dropdowns de filtro para desktop
+    const destinoFilterButton = document.getElementById('destinoFilterButton');
+    const destinoFilterDropdown = document.getElementById('destinoFilterDropdown');
+    const applyDestinoFilter = document.getElementById('applyDestinoFilter');
+    const clearDestinoFilter = document.getElementById('clearDestinoFilter');
+    
+    const statusFilterButton = document.getElementById('statusFilterButton');
+    const statusFilterDropdown = document.getElementById('statusFilterDropdown');
+    const applyStatusFilter = document.getElementById('applyStatusFilter');
+    const clearStatusFilter = document.getElementById('clearStatusFilter');
+    
+    // Configurar os dropdowns de filtro para mobile
+    const mobileDestinoFilterButton = document.getElementById('mobileDestinoFilterButton');
+    const mobileDestinoFilterDropdown = document.getElementById('mobileDestinoFilterDropdown');
+    const mobileApplyDestinoFilter = document.getElementById('mobileApplyDestinoFilter');
+    const mobileClearDestinoFilter = document.getElementById('mobileClearDestinoFilter');
+    
+    const mobileStatusFilterButton = document.getElementById('mobileStatusFilterButton');
+    const mobileStatusFilterDropdown = document.getElementById('mobileStatusFilterDropdown');
+    const mobileApplyStatusFilter = document.getElementById('mobileApplyStatusFilter');
+    const mobileClearStatusFilter = document.getElementById('mobileClearStatusFilter');
+    
+    // Posicionar o dropdown abaixo do botão
+    function positionDropdown(dropdown, button) {
+      const buttonRect = button.getBoundingClientRect();
+      dropdown.style.position = 'fixed';
+      dropdown.style.left = `${buttonRect.left}px`;
+      dropdown.style.top = `${buttonRect.bottom + window.scrollY}px`;
+    }
+    
+    // Alternar a visibilidade do dropdown de destino (desktop)
+    destinoFilterButton.addEventListener('click', function(e) {
+      e.stopPropagation();
+      positionDropdown(destinoFilterDropdown, destinoFilterButton);
+      destinoFilterDropdown.classList.toggle('hidden');
+      statusFilterDropdown.classList.add('hidden');
+      mobileDestinoFilterDropdown.classList.add('hidden');
+      mobileStatusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Alternar a visibilidade do dropdown de status (desktop)
+    statusFilterButton.addEventListener('click', function(e) {
+      e.stopPropagation();
+      positionDropdown(statusFilterDropdown, statusFilterButton);
+      statusFilterDropdown.classList.toggle('hidden');
+      destinoFilterDropdown.classList.add('hidden');
+      mobileDestinoFilterDropdown.classList.add('hidden');
+      mobileStatusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Alternar a visibilidade do dropdown de destino (mobile)
+    mobileDestinoFilterButton.addEventListener('click', function(e) {
+      e.stopPropagation();
+      mobileDestinoFilterDropdown.classList.toggle('hidden');
+      mobileStatusFilterDropdown.classList.add('hidden');
+      destinoFilterDropdown.classList.add('hidden');
+      statusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Alternar a visibilidade do dropdown de status (mobile)
+    mobileStatusFilterButton.addEventListener('click', function(e) {
+      e.stopPropagation();
+      mobileStatusFilterDropdown.classList.toggle('hidden');
+      mobileDestinoFilterDropdown.classList.add('hidden');
+      destinoFilterDropdown.classList.add('hidden');
+      statusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Fechar todos os dropdowns quando clicar fora
+    document.addEventListener('click', function() {
+      destinoFilterDropdown.classList.add('hidden');
+      statusFilterDropdown.classList.add('hidden');
+      mobileDestinoFilterDropdown.classList.add('hidden');
+      mobileStatusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Evitar que os dropdowns fechem quando clicar dentro deles
+    destinoFilterDropdown.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+    
+    statusFilterDropdown.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+    
+    mobileDestinoFilterDropdown.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+    
+    mobileStatusFilterDropdown.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+    
+    // Aplicar filtro de destino (desktop)
+    applyDestinoFilter.addEventListener('click', function() {
+      activeDestinoFilters = Array.from(document.querySelectorAll('.destino-filter-checkbox:checked')).map(cb => cb.value);
+      applyFilters();
+      destinoFilterDropdown.classList.add('hidden');
+    });
+    
+    // Limpar filtro de destino (desktop)
+    clearDestinoFilter.addEventListener('click', function() {
+      document.querySelectorAll('.destino-filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      activeDestinoFilters = [];
+      applyFilters();
+      destinoFilterDropdown.classList.add('hidden');
+    });
+    
+    // Aplicar filtro de status (desktop)
+    applyStatusFilter.addEventListener('click', function() {
+      activeStatusFilters = Array.from(document.querySelectorAll('.status-filter-checkbox:checked')).map(cb => cb.value);
+      applyFilters();
+      statusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Limpar filtro de status (desktop)
+    clearStatusFilter.addEventListener('click', function() {
+      document.querySelectorAll('.status-filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      activeStatusFilters = [];
+      applyFilters();
+      statusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Aplicar filtro de destino (mobile)
+    mobileApplyDestinoFilter.addEventListener('click', function() {
+      activeDestinoFilters = Array.from(document.querySelectorAll('.mobile-destino-filter-checkbox:checked')).map(cb => cb.value);
+      applyFilters();
+      mobileDestinoFilterDropdown.classList.add('hidden');
+    });
+    
+    // Limpar filtro de destino (mobile)
+    mobileClearDestinoFilter.addEventListener('click', function() {
+      document.querySelectorAll('.mobile-destino-filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      activeDestinoFilters = [];
+      applyFilters();
+      mobileDestinoFilterDropdown.classList.add('hidden');
+    });
+    
+    // Aplicar filtro de status (mobile)
+    mobileApplyStatusFilter.addEventListener('click', function() {
+      activeStatusFilters = Array.from(document.querySelectorAll('.mobile-status-filter-checkbox:checked')).map(cb => cb.value);
+      applyFilters();
+      mobileStatusFilterDropdown.classList.add('hidden');
+    });
+    
+    // Limpar filtro de status (mobile)
+    mobileClearStatusFilter.addEventListener('click', function() {
+      document.querySelectorAll('.mobile-status-filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      activeStatusFilters = [];
+      applyFilters();
+      mobileStatusFilterDropdown.classList.add('hidden');
+    });
+
+    // Reposicionar os dropdowns quando a janela for redimensionada
+    window.addEventListener('resize', function() {
+      if (!destinoFilterDropdown.classList.contains('hidden')) {
+        positionDropdown(destinoFilterDropdown, destinoFilterButton);
+      }
+      if (!statusFilterDropdown.classList.contains('hidden')) {
+        positionDropdown(statusFilterDropdown, statusFilterButton);
+      }
+    });
+
+    // Formulário de criação
+    document.getElementById('createModal').querySelector('form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      showLoading();
+      
+      const formData = new FormData(this);
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      
+      try {
+        const response = await fetch(this.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+          }
+        });
+
+        let data, isJson;
+        if (isJsonResponse(response)) {
+          data = await response.json();
+          isJson = true;
+        } else {
+          data = await response.text();
+          isJson = false;
+        }
+
+        if (isJson) {
+          if (data.success) {
+            closeModal('createModal');
+            resetAllFilters();
+            refreshTable();
+            alert('Processo criado com sucesso!');
+          } else {
+            throw new Error(data.message || 'Erro ao criar processo');
+          }
+        } else {
+          closeModal('createModal');
+          resetAllFilters();
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('Erro:', error);
+        alert(error.message || 'Erro ao criar processo');
+      } finally {
+        hideLoading();
+      }
+    });
+
+    // Formulário de edição
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      showLoading();
+      
+      const formData = new FormData(this);
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      formData.append('_method', 'PUT');
+      
+      fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
+        }
+      })
+      .then(response => {
+        if (isJsonResponse(response)) {
+          return response.json().then(data => ({ data, isJson: true }));
+        }
+        return response.text().then(text => ({ text, isJson: false }));
+      })
+      .then(({ data, text, isJson }) => {
+        if (isJson) {
+          if (data.success) {
+            if (data.redirect) {
+              window.location.href = data.redirect;
+            } else {
+              closeModal('editModal');
+              refreshTable();
+            }
+            
+            if (currentEditId && data.lancamento) {
+              const lancamento = data.lancamento;
+              document.getElementById('edit-po').value = lancamento.po;
+              document.getElementById('edit-destino').value = lancamento.destino_id;
+              document.getElementById('edit-quantidade').value = lancamento.quantidade;
+              document.getElementById('edit-status').value = lancamento.status;
+              document.getElementById('edit-observacao').value = lancamento.observacao;
+            }
+          } else {
+            throw new Error(data.message || 'Erro ao atualizar processo');
+          }
+        } else {
+          if (formData.get('status') === 'finalizado') {
+            window.location.href = "{% url 'processos_finalizados' %}";
+          } else {
+            closeModal('editModal');
+            refreshTable();
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Erro:', error);
+        alert(error.message || 'Erro ao atualizar processo');
+      })
+      .finally(() => {
+        hideLoading();
+      });
+    });
+
+    // Formulário de exclusão
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      showLoading();
+      
+      const formData = new FormData(this);
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      formData.append('_method', 'DELETE');
+      
+      fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
+        }
+      })
+      .then(response => {
+        if (isJsonResponse(response)) {
+          return response.json().then(data => ({ data, isJson: true }));
+        }
+        return response.text().then(text => ({ text, isJson: false }));
+      })
+      .then(({ data, text, isJson }) => {
+        if (isJson) {
+          if (data.success) {
+            closeModal('deleteModal');
+            refreshTable();
+          } else {
+            throw new Error(data.message || 'Erro ao excluir processo');
+          }
+        } else {
+          closeModal('deleteModal');
+          refreshTable();
+        }
+      })
+      .catch(error => {
+        console.error('Erro:', error);
+        alert(error.message || 'Erro ao excluir processo');
+      })
+      .finally(() => {
+        hideLoading();
+      });
+    });
+  });
+</script>
+
+{% endblock %}

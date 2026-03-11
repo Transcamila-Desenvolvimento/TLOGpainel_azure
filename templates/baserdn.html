@@ -1,0 +1,470 @@
+{% load static %}
+{% load dict_tags %}
+<!DOCTYPE html>
+<html lang="pt-br" x-data="{ menuOpen: false, settingsOpen: false, menuUsuarioOpen: false }">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Sistema{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'imagens/icone.png' %}">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .settings-transition {
+      transition: all 0.3s ease-in-out;
+    }
+
+    /* Garantir que o menu lateral apareça em telas grandes */
+    @media (min-width: 1024px) {
+      body>aside:first-of-type {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+    }
+
+    /* Estilos para Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      position: relative;
+      padding: 16px 20px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+      pointer-events: auto;
+      min-width: 300px;
+      max-width: 400px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toast.show {
+      transform: translateX(0);
+    }
+
+    .toast.success {
+      background-color: #10b981;
+    }
+
+    .toast.error {
+      background-color: #ef4444;
+    }
+
+    .toast.warning {
+      background-color: #f59e0b;
+    }
+
+    .toast.info {
+      background-color: #3b82f6;
+    }
+
+    .toast i {
+      font-size: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .toast-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+      }
+
+      .toast {
+        min-width: auto;
+        max-width: 100%;
+        padding: 12px 16px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden">
+
+  <!-- Loading Overlay (mantido igual) -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 hidden">
+    <!-- ... conteúdo do loading ... -->
+  </div>
+
+  <!-- MENU LATERAL (Desktop) -->
+  <aside class="hidden lg:flex w-72 bg-white border-r border-slate-200 flex-col shadow-sm h-screen fixed z-30">
+    <div class="p-6 border-b border-slate-100 flex items-center justify-center">
+      <img src="{% static 'imagens/Transcamila.png' %}" alt="Logo Transcamila" class="h-10 object-contain" />
+    </div>
+
+    <!-- Navegação com separadores -->
+    <nav class="flex-1 px-4 py-4 space-y-1 text-sm font-medium overflow-y-auto">
+
+      <!-- Grupo: Agendamentos -->
+      {% if 'agendamentos' in abas_disponiveis or not abas_disponiveis %}
+      <div class="mb-2">
+        <div class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Agendamentos</div>
+        <a href="{% url 'rondonopolis:lista_agendamentos' %}"
+          class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all
+          {% if request.resolver_match.url_name == 'lista_agendamentos' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+          <i class="bi bi-calendar-check text-lg"></i>
+          <span>Agendamentos</span>
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Separador -->
+      {% if not abas_disponiveis %}
+      <div class="my-4 mx-4 border-t border-slate-200"></div>
+      <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">PROCESSOS OPERACIONAIS</div>
+      {% elif 'portaria' in abas_disponiveis or 'checklist' in abas_disponiveis or 'armazem' in abas_disponiveis %}
+      <div class="my-4 mx-4 border-t border-slate-200"></div>
+      <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">PROCESSOS OPERACIONAIS</div>
+      {% elif 'onda' in abas_disponiveis or 'liberacao_documentos' in abas_disponiveis %}
+      <div class="my-4 mx-4 border-t border-slate-200"></div>
+      <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">PROCESSOS OPERACIONAIS</div>
+      {% endif %}
+
+      <!-- Grupo: Operacional -->
+      {% if 'portaria' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:portaria_agendamentos' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all
+        {% if request.resolver_match.url_name == 'portaria_agendamentos' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-door-closed text-lg"></i>
+        <span>Portaria</span>
+      </a>
+      {% endif %}
+
+      {% if 'checklist' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:checklist' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+        {% if request.resolver_match.url_name == 'checklist' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-list-check text-lg"></i>
+        <span>CheckList</span>
+      </a>
+      {% endif %}
+
+      {% if 'onda' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:liberacao_onda' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+        {% if request.resolver_match.url_name == 'liberacao_onda' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-file-text text-lg"></i>
+        <span>Liberação Onda/OD</span>
+      </a>
+      {% endif %}
+
+      {% if 'armazem' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:armazem' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+        {% if request.resolver_match.url_name == 'armazem' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-archive text-lg"></i>
+        <span>Armazém</span>
+      </a>
+      {% endif %}
+
+      {% if 'liberacao_documentos' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:liberacao_documentos' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+        {% if request.resolver_match.url_name == 'liberacao_documentos' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-file-earmark-check text-lg"></i>
+        <span>Documentos</span>
+      </a>
+      {% endif %}
+
+      <!-- Separador -->
+      {% if not abas_disponiveis %}
+      <div class="my-4 mx-4 border-t border-slate-200"></div>
+      <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">GERENCIAL</div>
+      {% elif 'processos' in abas_disponiveis or 'dashboard' in abas_disponiveis or 'painel' in abas_disponiveis %}
+      <div class="my-4 mx-4 border-t border-slate-200"></div>
+      <div class="px-4 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">GERENCIAL</div>
+      {% endif %}
+
+      <!-- Grupo: Processos -->
+      {% if 'processos' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:visualizacao_processos' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+       {% if request.resolver_match.url_name == 'visualizacao_processos' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-table text-lg"></i>
+        <span>Processos</span>
+      </a>
+      {% endif %}
+
+      {% if 'dashboard' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:processos_dashboard' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+      {% if request.resolver_match.url_name == 'processos_dashboard' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-bar-chart text-lg"></i>
+        <span>Dashboard</span>
+      </a>
+      {% endif %}
+
+      {% if 'painel' in abas_disponiveis or not abas_disponiveis %}
+      <a href="{% url 'rondonopolis:processos_painel' %}"
+        class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700
+      {% if request.resolver_match.url_name == 'processos_painel' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-tv text-lg"></i>
+        <span>Painel</span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <!-- Rodapé do menu lateral (mantido igual) -->
+    <div class="px-4 py-5 border-t border-slate-100 text-sm text-slate-500 bg-white">
+      {% if filiais_usuario|length > 1 %}
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-500 mb-2">TROCAR OPERAÇÃO</label>
+        <select onchange="trocarFilial(this.value)"
+          class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          id="filialSelect">
+          {% for filial in filiais_usuario %}
+          {% with f_id=filial.id c_id=filial_atual.id %}
+          <option value="{{ f_id }}" {% if f_id|is_equal:c_id %}selected{% endif %}>
+            {{ filial.nome }}
+          </option>
+          {% endwith %}
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <!-- Configurações e logout (mantido) -->
+      <div class="mb-4 settings-transition" x-show="settingsOpen" x-transition>
+        <div class="space-y-2 border-t border-slate-100 pt-3">
+          <a href="{% url 'rondonopolis:configuracoes_perfil' %}"
+            class="flex items-center gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-50 px-2 py-1 rounded text-xs">
+            <i class="bi bi-sliders text-sm"></i>
+            <span>Configurações e perfil</span>
+          </a>
+          {% if user.is_superuser or user.is_staff %}
+          <a href="{% url 'rondonopolis:tela_chamada_motorista' %}"
+            class="flex items-center gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-50 px-2 py-1 rounded text-xs">
+            <i class="bi bi-megaphone text-sm"></i>
+            <span>Tela de Chamada</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 flex-1">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+            {{ request.user.get_full_name|default:request.user.username|slice:":1"|upper }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-slate-800 truncate">
+              {{ request.user.get_full_name|default:request.user.username }}
+            </div>
+            {% if filial_atual %}
+            <div class="text-xs text-slate-500 truncate">{{ filial_atual.nome }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <button @click="settingsOpen = !settingsOpen"
+            class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            :class="{'text-blue-600 bg-blue-50': settingsOpen}">
+            <i class="bi bi-gear text-lg"></i>
+          </button>
+          <a href="{% url 'logout' %}"
+            class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <i class="bi bi-box-arrow-right text-lg"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="p-6 md:p-6 xl:p-8 overflow-y-auto h-screen lg:ml-72 pb-20 lg:pb-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- MENU INFERIOR (Mobile) - apenas páginas operacionais -->
+  <nav
+    class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-between items-center py-1.5 px-1 shadow-lg z-40"
+    x-data="{ menuUsuarioOpen: false }">
+    {% if 'portaria' in abas_disponiveis or not abas_disponiveis %}
+    <a href="{% url 'rondonopolis:portaria_agendamentos' %}" class="flex flex-col items-center text-[9px] px-1 py-1.5 rounded-lg text-slate-600 flex-1 min-w-0 transition-colors
+      {% if request.resolver_match.url_name == 'portaria_agendamentos' %}bg-slate-100{% endif %}">
+      <i class="bi bi-door-closed text-base"></i>
+      <span class="mt-0.5 leading-tight text-center">Portaria</span>
+    </a>
+    {% endif %}
+    {% if 'checklist' in abas_disponiveis or not abas_disponiveis %}
+    <a href="{% url 'rondonopolis:checklist' %}" class="flex flex-col items-center text-[9px] px-1 py-1.5 rounded-lg text-slate-600 flex-1 min-w-0 transition-colors
+      {% if request.resolver_match.url_name == 'checklist' %}bg-slate-100{% endif %}">
+      <i class="bi bi-list-check text-base"></i>
+      <span class="mt-0.5 leading-tight text-center">Check</span>
+    </a>
+    {% endif %}
+    {% if 'onda' in abas_disponiveis or not abas_disponiveis %}
+    <a href="{% url 'rondonopolis:liberacao_onda' %}" class="flex flex-col items-center text-[9px] px-1 py-1.5 rounded-lg text-slate-600 flex-1 min-w-0 transition-colors
+      {% if request.resolver_match.url_name == 'liberacao_onda' %}bg-slate-100{% endif %}">
+      <i class="bi bi-file-text text-base"></i>
+      <span class="mt-0.5 leading-tight text-center">Onda/OD</span>
+    </a>
+    {% endif %}
+    {% if 'armazem' in abas_disponiveis or not abas_disponiveis %}
+    <a href="{% url 'rondonopolis:armazem' %}" class="flex flex-col items-center text-[9px] px-1 py-1.5 rounded-lg text-slate-600 flex-1 min-w-0 transition-colors
+      {% if request.resolver_match.url_name == 'armazem' %}bg-slate-100{% endif %}">
+      <i class="bi bi-archive text-base"></i>
+      <span class="mt-0.5 leading-tight text-center">Armazém</span>
+    </a>
+    {% endif %}
+    {% if 'liberacao_documentos' in abas_disponiveis or not abas_disponiveis %}
+    <a href="{% url 'rondonopolis:liberacao_documentos' %}" class="flex flex-col items-center text-[9px] px-1 py-1.5 rounded-lg text-slate-600 flex-1 min-w-0 transition-colors
+      {% if request.resolver_match.url_name == 'liberacao_documentos' %}bg-slate-100{% endif %}">
+      <i class="bi bi-file-earmark-check text-base"></i>
+      <span class="mt-0.5 leading-tight text-center">Docs</span>
+    </a>
+    {% endif %}
+    {% if 'processos' in abas_disponiveis or not abas_disponiveis %}
+    <a href="{% url 'rondonopolis:visualizacao_processos' %}" class="flex flex-col items-center text-[9px] px-1 py-1.5 rounded-lg text-slate-600 flex-1 min-w-0 transition-colors
+      {% if request.resolver_match.url_name == 'visualizacao_processos' %}bg-slate-100{% endif %}">
+      <i class="bi bi-table text-base"></i>
+      <span class="mt-0.5 leading-tight text-center">Processos</span>
+    </a>
+    {% endif %}
+
+    <!-- Botão de Menu do Usuário - Minimalista -->
+    <div class="relative ml-1">
+      <button @click="menuUsuarioOpen = !menuUsuarioOpen" @click.away="menuUsuarioOpen = false"
+        class="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-slate-600 transition-colors">
+        <i class="bi bi-three-dots-vertical text-base"></i>
+      </button>
+
+      <!-- Menu Dropdown Minimalista -->
+      <div x-show="menuUsuarioOpen" x-transition:enter="transition ease-out duration-100"
+        x-transition:enter-start="opacity-0 transform translate-y-1"
+        x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-75"
+        x-transition:leave-start="opacity-100 transform translate-y-0"
+        x-transition:leave-end="opacity-0 transform translate-y-1"
+        class="absolute bottom-full right-0 mb-2 w-36 bg-white rounded-md shadow-lg border border-slate-200 py-1.5 z-50"
+        style="display: none;">
+        <a href="{% url 'rondonopolis:configuracoes_perfil' %}"
+          class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+          @click="menuUsuarioOpen = false">
+          <i class="bi bi-person text-xs"></i>
+          <span>Perfil</span>
+        </a>
+        <div class="border-t border-slate-100 my-1"></div>
+        <a href="{% url 'logout' %}"
+          class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+          @click="menuUsuarioOpen = false">
+          <i class="bi bi-box-arrow-right text-xs"></i>
+          <span>Sair</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <script src="//unpkg.com/alpinejs" defer></script>
+  <script>
+    function trocarFilial(filialId) {
+      if (filialId) {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const filialSelect = document.getElementById('filialSelect');
+        loadingOverlay.classList.remove('hidden');
+        if (filialSelect) filialSelect.disabled = true;
+
+        const url = "{% url 'selecionar_filial' 0 %}".replace('0', filialId);
+
+        setTimeout(() => {
+          fetch(url, { method: 'GET', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => r.redirected ? window.location.href = r.url : window.location.reload())
+            .catch(() => {
+              loadingOverlay.classList.add('hidden');
+              if (filialSelect) filialSelect.disabled = false;
+              alert('Erro ao trocar filial.');
+            });
+        }, 500);
+      }
+    }
+
+    // Sistema de notificações push do navegador (Web Push)
+    // As notificações são enviadas diretamente pelo servidor via Web Push API
+    // e aparecem como notificações do sistema operacional, mesmo com o site fechado
+    // Não há necessidade de polling ou verificação periódica - o Service Worker recebe as notificações automaticamente
+
+    // Função global para mostrar toast (apenas para feedback de ações na página)
+    window.mostrarToast = function (mensagem, tipo = 'info') {
+      let toastContainer = document.getElementById('toast-container');
+      if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+      }
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${tipo}`;
+
+      const icons = {
+        'success': 'bi-check-circle-fill',
+        'error': 'bi-x-circle-fill',
+        'warning': 'bi-exclamation-triangle-fill',
+        'info': 'bi-info-circle-fill'
+      };
+
+      toast.innerHTML = `
+        <i class="bi ${icons[tipo] || icons.info} text-xl"></i>
+        <span>${mensagem}</span>
+      `;
+
+      toastContainer.appendChild(toast);
+
+      // Animar entrada
+      setTimeout(() => toast.classList.add('show'), 100);
+
+      // Remover após 5 segundos
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    };
+
+    // REMOVIDO: Toda a funcionalidade de navegação AJAX foi removida
+    // Voltando ao comportamento padrão de recarregar a página
+    // Isso garante que todos os scripts funcionem corretamente
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+
+</html>

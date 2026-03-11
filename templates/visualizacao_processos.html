@@ -1,0 +1,1696 @@
+﻿{% extends 'baserdn.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Acompanhamento de Processos - Operação Rondonópolis{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Simplificado -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 xl:mb-4 gap-3 xl:gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-sky-600"></span>
+    <h1 class="text-lg md:text-xl xl:text-2xl font-semibold text-gray-900">Acompanhamento de Processos</h1>
+  </div>
+</div>
+
+<!-- Filtros Colapsáveis para Mobile -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 xl:mb-6">
+  <!-- Header dos Filtros -->
+  <div class="flex items-center justify-between p-4 border-b border-gray-200 md:hidden">
+    <h2 class="text-lg font-medium text-gray-900">Filtros</h2>
+    <button type="button" id="toggle-filters"
+      class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
+      <i class="bi bi-funnel text-base"></i>
+    </button>
+  </div>
+
+  <!-- Conteúdo dos Filtros -->
+  <div id="filters-content" class="hidden md:block p-3 md:p-4">
+    <form method="GET" class="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4 items-start">
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <select id="filtro-status" name="status"
+          class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+          <option value="">Todos os status</option>
+          <option value="aguardando_chegada" {% if request.GET.status == 'aguardando_chegada' %}selected{% endif %}>
+            Aguardando Portaria</option>
+          <option value="em_checklist" {% if request.GET.status == 'em_checklist' %}selected{% endif %}>Em Checklist
+          </option>
+          <option value="pendente_liberacao_onda" {% if request.GET.status == 'pendente_liberacao_onda' %}selected{% endif
+            %}>Pendente Onda</option>
+          <option value="confirmacao_armazem" {% if request.GET.status == 'confirmacao_armazem' %}selected{% endif %}>
+            Aguardando Armazém</option>
+          <option value="pendente_liberacao_documentos" {% if request.GET.status == 'pendente_liberacao_documentos'
+            %}selected{% endif %}>Pendente Documentos</option>
+          <option value="processo_concluido" {% if request.GET.status == 'processo_concluido' %}selected{% endif %}>
+            Concluído</option>
+        </select>
+      </div>
+
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        <select id="filtro-tipo" name="tipo"
+          class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+          <option value="">Todos os tipos</option>
+          <option value="coleta" {% if request.GET.tipo == 'coleta' %}selected{% endif %}>Coleta</option>
+          <option value="entrega" {% if request.GET.tipo == 'entrega' %}selected{% endif %}>Entrega</option>
+        </select>
+      </div>
+
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Motorista</label>
+        <select id="filtro-motorista" name="motorista"
+          class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+          <option value="">Todos os motoristas</option>
+          {% for motorista in motoristas %}
+          <option value="{{ motorista.id }}" {% if request.GET.motorista|stringformat:"s" == motorista.id|stringformat:"s" %}selected{% endif %}>
+            {{ motorista.nome }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+        <input type="date" id="filtro-data" name="data"
+          value="{% if request.GET.data %}{{ request.GET.data }}{% else %}{{ data_selecionada }}{% endif %}"
+          class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+      </div>
+
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+        <input type="text" id="filtro-busca" name="busca" value="{{ request.GET.busca }}"
+          placeholder="Ordem, motorista, placa..."
+          class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+      </div>
+
+      <div class="w-full sm:w-auto self-end flex gap-2 mt-2 sm:mt-0">
+        <button type="submit"
+          class="bg-sky-600 hover:bg-sky-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none">
+          Filtrar
+        </button>
+        <button id="btn-limpar-filtros" type="button"
+          class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none">
+          Limpar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Cards para Mobile / Tabela para Desktop -->
+<div class="block md:hidden">
+  <!-- Cards para Mobile -->
+  <div class="space-y-3">
+    {% for agendamento_data in agendamentos %}
+    {% with agendamento=agendamento_data.obj %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <!-- Header do Card - Informações Essenciais -->
+      <div class="flex justify-between items-start mb-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="text-base font-semibold text-gray-900 truncate">{{ agendamento.ordem }}</div>
+            <!-- Status Badge -->
+            {% if agendamento.status_geral == 'aguardando_chegada' %}
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200 shrink-0">
+              Aguardando
+            </span>
+            {% elif agendamento.status_geral == 'em_checklist' %}
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200 shrink-0">
+              Checklist
+            </span>
+            {% elif agendamento.status_geral == 'confirmacao_armazem' %}
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
+              Armazém
+            </span>
+            {% elif agendamento.status_geral == 'pendente_liberacao_onda' %}
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
+              Liberação
+            </span>
+            {% elif agendamento.status_geral == 'processo_concluido' %}
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+              Concluído
+            </span>
+            {% endif %}
+          </div>
+
+          <!-- Informações Principais Compactas -->
+          <div class="space-y-2">
+            <div class="flex items-center gap-3 text-sm">
+              <div class="flex items-center gap-1">
+                <i class="bi bi-person text-gray-400 text-xs"></i>
+                <span class="text-gray-900 font-medium truncate">{{ agendamento.motorista.nome|truncatechars:15 }}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <i class="bi bi-truck text-gray-400 text-xs"></i>
+                <span class="text-gray-600 text-xs">{{ agendamento.placa_veiculo }}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 text-sm">
+              <div class="flex items-center gap-1">
+                <i class="bi bi-calendar text-gray-400 text-xs"></i>
+                <span class="text-gray-600">{{ agendamento.data_agendada|date:"d/m" }}</span>
+                {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                <span
+                  class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+                {% else %}
+                <span class="text-gray-600">{{ agendamento.horario_agendado|time:"H:i" }}</span>
+                {% endif %}
+              </div>
+              <div class="flex items-center gap-1">
+                <i class="bi bi-building text-gray-400 text-xs"></i>
+                <span class="text-gray-600 text-xs truncate">{{ agendamento.transportadora.nome|truncatechars:12 }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu de Ações - Oculto no mobile -->
+        <div class="hidden md:block relative shrink-0 ml-2 dropdown-container"
+          data-agendamento-id="{{ agendamento.id }}">
+          <button type="button"
+            class="dropdown-toggle inline-flex items-center justify-center w-7 h-7 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+            data-agendamento-id="{{ agendamento.id }}">
+            <i class="bi bi-three-dots-vertical text-sm"></i>
+          </button>
+          <div
+            class="dropdown-menu hidden origin-top-right absolute right-0 mt-1 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+            data-menu-id="{{ agendamento.id }}">
+            <div class="py-1" role="none">
+              <a href="#" class="dropdown-item text-gray-700 flex items-center px-3 py-2 text-sm hover:bg-gray-100"
+                data-action="exibir" data-id="{{ agendamento.id }}">
+                <i class="bi bi-eye mr-2 text-sky-600 text-xs"></i> Exibir
+              </a>
+              {% if is_admin %}
+              <a href="#" class="dropdown-item text-gray-700 flex items-center px-3 py-2 text-sm hover:bg-gray-100"
+                data-action="gerenciar" data-id="{{ agendamento.id }}">
+                <i class="bi bi-gear mr-2 text-sky-600 text-xs"></i> Gerenciar
+              </a>
+              {% endif %}
+              <a href="#" class="dropdown-item text-gray-700 flex items-center px-3 py-2 text-sm hover:bg-gray-100"
+                data-action="imprimir" data-id="{{ agendamento.id }}">
+                <i class="bi bi-printer mr-2 text-sky-600 text-xs"></i> Imprimir
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Progresso com Caminho das Etapas -->
+      <div class="mt-3">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs text-gray-500 font-medium">Progresso</span>
+          <span class="text-xs text-gray-500">
+            {% widthratio agendamento_data.etapas_concluidas agendamento_data.total_etapas 100 %}%
+          </span>
+        </div>
+
+        <!-- Etapas com linha de conexão até a etapa atual -->
+        <div class="relative">
+          <!-- Linha de fundo (cinza) -->
+          <div class="absolute top-3 left-0 right-0 h-0.5 bg-gray-200"></div>
+
+          <!-- Linha azul até a etapa atual -->
+          {% comment %} Calcular posição da linha azul baseado nas etapas concluídas {% endcomment %}
+          {% with etapas=agendamento_data.etapas_ordenadas total_etapas=agendamento_data.total_etapas etapas_concluidas=agendamento_data.etapas_concluidas %}
+          {% if etapas_concluidas == total_etapas %}
+          {% comment %} Se todas estão concluídas, linha azul completa {% endcomment %}
+          <div class="absolute top-3 left-0 right-0 h-0.5 bg-sky-600"></div>
+          {% else %}
+          {% comment %} Linha azul vai até o centro da primeira etapa não concluída {% endcomment %}
+          {% widthratio etapas_concluidas total_etapas 100 as porcentagem_base %}
+          {% widthratio 50 total_etapas 100 as metade_etapa_pct %}
+          <div class="absolute top-3 left-0 h-0.5 bg-sky-600"
+            style="width: calc((100% / {{ total_etapas }}) * {{ etapas_concluidas }} + (100% / {{ total_etapas }}) / 2);">
+          </div>
+          {% endif %}
+          {% endwith %}
+
+          <!-- Bolinhas das Etapas -->
+          <div class="relative flex justify-between items-start">
+            {% for etapa in agendamento_data.etapas_ordenadas %}
+            <div class="flex flex-col items-center flex-1 relative group">
+              <!-- Bolinha da Etapa -->
+              <div class="relative">
+                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs border-2
+                  {% if etapa.concluida %}bg-emerald-500 border-emerald-600 text-white
+                  {% elif etapa.disponivel and not etapa.concluida %}bg-sky-500 border-sky-600 text-white
+                  {% else %}bg-white border-gray-300 text-gray-400{% endif %}">
+                  {% if etapa.concluida %}
+                  <i class="bi bi-check text-xs font-bold"></i>
+                  {% else %}
+                  <span class="text-xs font-semibold">{{ forloop.counter }}</span>
+                  {% endif %}
+                </div>
+                <!-- Tooltip com nome da etapa -->
+                <div
+                  class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-40">
+                  {{ etapa.nome }}
+                  {% if etapa.concluida %}
+                  <span class="text-emerald-300">✓</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <!-- Horário de conclusão (apenas para etapas concluídas) -->
+              {% if etapa.concluida and etapa.data and etapa.nome != 'Armazém' %}
+              <div class="mt-1 text-[10px] text-gray-500 font-medium text-center leading-tight">
+                {{ etapa.data|date:"H:i" }}
+              </div>
+              {% else %}
+              <div class="mt-1 h-[14px]"></div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    {% endwith %}
+    {% empty %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
+      <i class="bi bi-inbox text-3xl text-gray-300 mb-2"></i>
+      <p class="text-gray-500">Nenhum agendamento encontrado</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Tabela para Desktop (mantida igual) -->
+<div class="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200">
+  <!-- Container da tabela sem overflow -->
+  <div class="w-full overflow-x-auto overflow-y-visible">
+    <table class="w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Ordem/Importação
+          </th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Motorista & Veículo
+          </th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Agendamento
+          </th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Transportadora
+          </th>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Etapas
+          </th>
+          <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Ações
+          </th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for agendamento_data in agendamentos %}
+        {% with agendamento=agendamento_data.obj %}
+        <tr class="hover:bg-gray-50 transition-colors">
+          <!-- Ordem/Importação -->
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="text-sm font-medium text-gray-900">{{ agendamento.ordem }}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              {% if agendamento.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200">
+                {{ agendamento.get_tipo_display }}
+              </span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                {{ agendamento.get_tipo_display }}
+              </span>
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- Motorista & Veículo -->
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="text-sm font-medium text-gray-900">{{ agendamento.motorista.nome }}</div>
+            <div class="text-sm text-gray-500">{{ agendamento.placa_veiculo }}</div>
+            <div class="text-xs text-gray-500 mt-1">{{ agendamento.get_tipo_veiculo_display }}</div>
+          </td>
+
+          <!-- Agendamento -->
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900">{{ agendamento.data_agendada|date:"d/m/Y" }}</div>
+            <div class="text-sm text-gray-500">
+              {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+              <span
+                class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+              {% else %}
+              {{ agendamento.horario_agendado|time:"H:i" }}
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- Transportadora -->
+          <td class="px-4 py-4 whitespace-nowrap">
+            <div class="text-sm text-gray-900">{{ agendamento.transportadora.nome|truncatechars:29 }}</div>
+            <div class="text-xs text-gray-500">{{ agendamento.peso }} kg</div>
+          </td>
+
+          <!-- Etapas Dinâmicas -->
+          <td class="px-4 py-4">
+            <div class="flex items-center">
+              {% for etapa in agendamento_data.etapas_ordenadas %}
+              <div class="flex flex-col items-center {% if not forloop.last %}mr-3{% endif %}">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs
+                  {% if etapa.concluida %}bg-emerald-500 text-white
+                  {% elif etapa.disponivel and etapa.tipo == 'sequencial' %}bg-sky-500 text-white
+                  {% elif etapa.tipo == 'independente' and etapa.concluida %}bg-emerald-500 text-white
+                  {% elif etapa.tipo == 'independente' %}bg-gray-300 text-gray-500
+                  {% else %}bg-gray-200 text-gray-500{% endif %}">
+                  {% if etapa.concluida %}
+                  <i class="bi bi-check text-xs font-bold"></i>
+                  {% else %}
+                  <span class="text-xs font-semibold">{{ forloop.counter }}</span>
+                  {% endif %}
+                </div>
+                <span class="text-xs mt-1 text-gray-500 text-center">{{ etapa.nome }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </td>
+
+          <!-- Ações com Dropdown -->
+          <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <div class="flex justify-end">
+              <div class="relative inline-block text-left dropdown-container"
+                data-agendamento-id="{{ agendamento.id }}">
+                <button type="button"
+                  class="dropdown-toggle inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-sky-500"
+                  data-agendamento-id="{{ agendamento.id }}">
+                  <i class="bi bi-three-dots-vertical text-base"></i>
+                </button>
+
+                <div
+                  class="dropdown-menu hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+                  data-menu-id="{{ agendamento.id }}">
+                  <div class="py-1" role="none">
+                    <a href="#"
+                      class="dropdown-item text-gray-700 flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      data-action="exibir" data-id="{{ agendamento.id }}">
+                      <i class="bi bi-eye mr-3 text-sky-600"></i> Exibir
+                    </a>
+                    {% if is_admin %}
+                    <a href="#"
+                      class="dropdown-item text-gray-700 flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      data-action="gerenciar" data-id="{{ agendamento.id }}">
+                      <i class="bi bi-gear mr-3 text-sky-600"></i> Gerenciar
+                    </a>
+                    {% endif %}
+                    <a href="#"
+                      class="dropdown-item text-gray-700 flex items-center px-4 py-2 text-sm hover:bg-gray-100"
+                      data-action="imprimir" data-id="{{ agendamento.id }}">
+                      <i class="bi bi-printer mr-3 text-sky-600"></i> Imprimir
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+            Nenhum agendamento encontrado
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginação -->
+  <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+    <div class="flex flex-col sm:flex-row sm:flex-1 sm:justify-between items-center gap-3">
+      <div>
+        <p class="text-sm text-gray-700">
+          Mostrando
+          <span class="font-medium">{{ agendamentos.start_index }}</span>
+          a
+          <span class="font-medium">{{ agendamentos.end_index }}</span>
+          de
+          <span class="font-medium">{{ agendamentos.paginator.count }}</span>
+          resultados
+        </p>
+      </div>
+      <div>
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+          {% if agendamentos.has_previous %}
+          <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ agendamentos.previous_page_number }}"
+            class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <span class="sr-only">Anterior</span>
+            <i class="bi bi-chevron-left"></i>
+          </a>
+          {% endif %}
+
+          {% for num in agendamentos.paginator.page_range %}
+          {% if agendamentos.number == num %}
+          <span
+            class="relative inline-flex items-center px-4 py-2 border border-sky-500 bg-sky-50 text-sky-600 text-sm font-medium">
+            {{ num }}
+          </span>
+          {% elif num > agendamentos.number|add:'-3' and num < agendamentos.number|add:'3' %} <a
+            href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}"
+            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            {{ num }}
+            </a>
+            {% endif %}
+            {% endfor %}
+
+            {% if agendamentos.has_next %}
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ agendamentos.next_page_number }}"
+              class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+              <span class="sr-only">Próximo</span>
+              <i class="bi bi-chevron-right"></i>
+            </a>
+            {% endif %}
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Gerenciamento de Etapas -->
+<div id="modal-gerenciar"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10002] p-4 overflow-y-auto">
+  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full h-[85vh] flex flex-col overflow-hidden">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200 shrink-0 bg-white">
+      <h3 class="text-lg font-semibold text-gray-900">Gerenciar Etapas do Processo</h3>
+      <button onclick="fecharModalGerenciar()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-2xl"></i>
+      </button>
+    </div>
+
+    <div class="p-6 bg-gray-50 overflow-y-auto overflow-x-auto flex-1 min-h-0">
+      <form id="form-gerenciar-etapas" class="space-y-6">
+        <input type="hidden" id="gerenciar-agendamento-id" name="agendamento_id">
+
+        <!-- Portaria -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-door-open mr-2 text-sky-600"></i> Portaria
+          </h4>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Data/Hora da Liberação</label>
+            <input type="datetime-local" id="portaria-liberacao" name="portaria_liberacao"
+              class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm"
+              placeholder="Horário de Rondonópolis">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Confirmação Chegada Armazém</label>
+            <input type="datetime-local" id="portaria-chegada-armazem" name="portaria_chegada_armazem"
+              class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm"
+              placeholder="Horário de Rondonópolis">
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <div id="section-checklist" class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-clipboard-check mr-2 text-sky-600"></i> Checklist
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nº do Checklist</label>
+              <input type="text" id="checklist-numero" name="checklist_numero"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Data/Hora do Preenchimento</label>
+              <input type="datetime-local" id="checklist-data" name="checklist_data"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <textarea id="checklist-observacao" name="checklist_observacao" rows="2"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Onda -->
+        <div id="section-onda" class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 id="onda-titulo" class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-file-text mr-2 text-sky-600"></i> <span id="onda-titulo-texto">Onda/OD</span>
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select id="onda-status" name="onda_status"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+                <option value="aguardando">Aguardando</option>
+                <option value="liberado">Liberado</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Data/Hora da Liberação</label>
+              <input type="datetime-local" id="onda-liberacao" name="onda_liberacao"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+            </div>
+          </div>
+        </div>
+
+        <!-- Armazém -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-box-seam mr-2 text-sky-600"></i> Armazém
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Início da Operação (Chegada)</label>
+              <input type="datetime-local" id="armazem-chegada" name="armazem_chegada"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Término da Operação (Saída)</label>
+              <input type="datetime-local" id="armazem-saida" name="armazem_saida"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <textarea id="armazem-saida-observacao" name="armazem_saida_observacao" rows="2"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Documentos -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-file-earmark-check mr-2 text-sky-600"></i> Documentos
+          </h4>
+
+          <div class="grid grid-cols-1 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Data/Hora da Liberação</label>
+              <input type="datetime-local" id="documentos-liberacao" name="documentos_liberacao"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <textarea id="documentos-observacao" name="documentos_observacao" rows="2"
+                class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm"></textarea>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="flex justify-end gap-3 p-4 border-t border-gray-200 bg-white shrink-0">
+      <button onclick="fecharModalGerenciar()"
+        class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded-md flex items-center gap-2 transition-colors">
+        Cancelar
+      </button>
+      <button onclick="salvarEtapas()"
+        class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2 rounded-md flex items-center gap-2 transition-colors">
+        <i class="bi bi-check-lg"></i> Salvar Alterações
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Prévia de Impressão -->
+<div id="modal-impressao"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10001] p-4 overflow-y-auto">
+  <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col mx-auto my-8">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200 shrink-0 bg-white">
+      <h3 class="text-lg font-semibold text-gray-900">Comprovante de Procedimento - Prévia</h3>
+      <button onclick="fecharModalImpressao()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-2xl"></i>
+      </button>
+    </div>
+
+    <div class="p-6 bg-gray-50 overflow-y-auto overflow-x-auto flex-1 min-h-0">
+      <div id="conteudo-impressao"
+        class="bg-white p-8 border-2 border-dashed border-gray-300 text-sm w-full max-w-full">
+        <!-- Conteúdo carregado via JS -->
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 p-4 border-t border-gray-200 bg-white shrink-0">
+      <button onclick="imprimirDocumento()"
+        class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-2 rounded-md flex items-center gap-2 transition-colors">
+        <i class="bi bi-printer"></i> Imprimir
+      </button>
+      <button onclick="salvarComoPDF()"
+        class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-md flex items-center gap-2 transition-colors">
+        <i class="bi bi-file-earmark-pdf"></i> Salvar PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Sistema de dropdown completamente refeito
+  document.addEventListener('DOMContentLoaded', function () {
+    // Fecha todos os menus
+    function closeAllMenus() {
+      document.querySelectorAll('.dropdown-menu').forEach(menu => {
+        menu.classList.add('hidden');
+        menu.style.position = '';
+        menu.style.top = '';
+        menu.style.left = '';
+        menu.style.right = '';
+        menu.style.bottom = '';
+        menu.style.width = '';
+      });
+    }
+
+    // Abre/fecha menu específico
+    function toggleMenu(button, menu) {
+      const isHidden = menu.classList.contains('hidden');
+
+      // Fecha todos os outros menus primeiro
+      closeAllMenus();
+
+      if (isHidden) {
+        // Abre o menu
+        menu.classList.remove('hidden');
+
+        const buttonRect = button.getBoundingClientRect();
+        const isMobile = window.innerWidth < 768;
+        const isInTable = menu.closest('td') !== null;
+
+        if (isMobile && !isInTable) {
+          // Mobile: posiciona fixo na parte inferior
+          menu.style.position = 'fixed';
+          menu.style.bottom = '136px';
+          menu.style.left = '1rem';
+          menu.style.right = '1rem';
+          menu.style.width = 'auto';
+          menu.style.top = 'auto';
+          menu.style.zIndex = '10000';
+        } else {
+          // Desktop: posiciona relativo ao botão
+          const menuWidth = 192;
+          const menuHeight = 100;
+          const padding = 4;
+          const margin = 8;
+
+          // Calcula posição
+          let leftPos = buttonRect.right - menuWidth;
+          let topPos = buttonRect.bottom + padding;
+
+          // Ajusta horizontalmente
+          if (leftPos < margin) {
+            leftPos = buttonRect.left;
+          }
+          if (leftPos + menuWidth > window.innerWidth - margin) {
+            leftPos = window.innerWidth - menuWidth - margin;
+          }
+
+          // Ajusta verticalmente
+          if (topPos + menuHeight > window.innerHeight - margin) {
+            topPos = buttonRect.top - menuHeight - padding;
+          }
+          if (topPos < margin) {
+            topPos = margin;
+          }
+
+          menu.style.position = 'fixed';
+          menu.style.top = topPos + 'px';
+          menu.style.left = leftPos + 'px';
+          menu.style.right = 'auto';
+          menu.style.bottom = 'auto';
+          menu.style.width = menuWidth + 'px';
+          menu.style.zIndex = '10000';
+        }
+      }
+    }
+
+    // Event listeners para botões dropdown
+    document.querySelectorAll('.dropdown-toggle').forEach(button => {
+      button.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const container = this.closest('.dropdown-container');
+        const menu = container.querySelector('.dropdown-menu');
+        if (menu) {
+          toggleMenu(this, menu);
+        }
+      });
+    });
+
+    // Fecha menus ao clicar fora
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.dropdown-container')) {
+        closeAllMenus();
+      }
+    });
+
+    // Event listeners para itens do menu
+    document.querySelectorAll('.dropdown-item').forEach(item => {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        const action = this.getAttribute('data-action');
+        const id = parseInt(this.getAttribute('data-id'));
+
+        closeAllMenus();
+
+        if (action === 'gerenciar') {
+          gerenciarAgendamento(id);
+        } else if (action === 'imprimir') {
+          abrirPreviaImpressao(id);
+        }
+      });
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const btnLimpar = document.getElementById('btn-limpar-filtros');
+    const toggleFilters = document.getElementById('toggle-filters');
+    const filtersContent = document.getElementById('filters-content');
+
+    // Toggle dos filtros no mobile
+    if (toggleFilters && filtersContent) {
+      toggleFilters.addEventListener('click', function () {
+        filtersContent.classList.toggle('hidden');
+      });
+    }
+
+    // Limpar filtros - redireciona para a página com apenas a data de hoje
+    if (btnLimpar) {
+      btnLimpar.addEventListener('click', function () {
+        const hoje = new Date().toISOString().split('T')[0];
+        window.location.href = '/rondonopolis/processos/?data=' + hoje;
+      });
+    }
+
+    // Aplicar filtros automaticamente
+    const filtros = ['filtro-status', 'filtro-tipo', 'filtro-motorista', 'filtro-data', 'filtro-busca'];
+    filtros.forEach(filtroId => {
+      const elemento = document.getElementById(filtroId);
+      if (elemento) {
+        elemento.addEventListener('change', function () {
+          this.form.submit();
+        });
+      }
+    });
+
+  });
+
+  // IMPRESSÃO
+  function abrirPreviaImpressao(id) {
+    mostrarLoading('Carregando comprovante...');
+    fetch(`/rondonopolis/portaria/documento-impressao/?id=${id}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(d => {
+        esconderLoading();
+        if (d.success) {
+          document.getElementById('conteudo-impressao').innerHTML = d.html;
+          document.getElementById('modal-impressao').classList.remove('hidden');
+        } else {
+          alert('Erro ao carregar documento: ' + (d.error || 'Erro desconhecido'));
+        }
+      })
+      .catch(() => {
+        esconderLoading();
+        alert('Erro de conexão ao carregar documento');
+      });
+  }
+
+  function fecharModalImpressao() {
+    document.getElementById('modal-impressao').classList.add('hidden');
+  }
+
+  function imprimirDocumento() {
+    const conteudo = document.getElementById('conteudo-impressao').innerHTML;
+    const win = window.open('', '', 'width=900,height=700');
+    win.document.write(`<!DOCTYPE html><html><head><title>Impressão</title><style>@media print { body { margin: 0; } }</style></head><body onload="window.print(); setTimeout(() => window.close(), 500);">${conteudo}</body></html>`);
+    win.document.close();
+  }
+
+  function salvarComoPDF() {
+    imprimirDocumento();
+    alert('Use "Salvar como PDF" na janela de impressão');
+  }
+
+  function mostrarLoading(mensagem = 'Processando...') {
+    // Criar overlay de loading se não existir
+    let overlay = document.getElementById('loadingOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'loadingOverlay';
+      overlay.className = 'fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10002]';
+      overlay.innerHTML = `
+            <div class="bg-white rounded-lg p-6 flex flex-col items-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p class="text-gray-700" id="loader-mensagem">${mensagem}</p>
+            </div>
+        `;
+      document.body.appendChild(overlay);
+    } else {
+      const mensagemEl = overlay.querySelector('#loader-mensagem');
+      if (mensagemEl) mensagemEl.textContent = mensagem;
+      overlay.classList.remove('hidden');
+    }
+  }
+
+  function esconderLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.classList.add('hidden');
+  }
+
+  // Funções para editar e excluir agendamentos
+  function editarAgendamento(id) {
+    // Redirecionar para a página de edição ou abrir modal
+    window.location.href = `/rondonopolis/agendamentos/${id}/editar/`;
+  }
+
+  function excluirAgendamento(id) {
+    if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+      // Fazer requisição para excluir o agendamento
+      fetch(`/rondonopolis/agendamentos/${id}/excluir/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/json',
+        }
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Agendamento excluído com sucesso!');
+            window.location.reload();
+          } else {
+            alert('Erro ao excluir agendamento: ' + data.error);
+          }
+        })
+        .catch(error => {
+          alert('Erro na conexão: ' + error.message);
+        });
+    }
+  }
+
+  // Função para obter o horário atual de Rondonópolis no formato para datetime-local
+  // Usa a mesma lógica dos templates de portaria, checklist e armazém
+  function obterHorarioRondonopolisParaInput() {
+    return fetch('/rondonopolis/portaria/horario-atual/', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.timestamp) {
+          // O timestamp vem do servidor já no fuso de Rondonópolis
+          // Usar Intl.DateTimeFormat para extrair componentes no fuso de Rondonópolis
+          const dateRdn = new Date(d.timestamp);
+
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Cuiaba',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+
+          const parts = formatter.formatToParts(dateRdn);
+          const year = parts.find(p => p.type === 'year').value;
+          const month = parts.find(p => p.type === 'month').value;
+          const day = parts.find(p => p.type === 'day').value;
+          const hour = parts.find(p => p.type === 'hour').value;
+          const minute = parts.find(p => p.type === 'minute').value;
+
+          // Retornar diretamente no formato YYYY-MM-DDTHH:MM
+          // O campo datetime-local vai mostrar esses valores diretamente
+          // Quando salvar, vamos converter de volta assumindo que está no fuso local
+          return `${year}-${month}-${day}T${hour}:${minute}`;
+        }
+        return null;
+      })
+      .catch(() => {
+        // Se falhar, usar horário local com timezone de Rondonópolis
+        const agora = new Date();
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Cuiaba',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        const parts = formatter.formatToParts(agora);
+        const year = parts.find(p => p.type === 'year').value;
+        const month = parts.find(p => p.type === 'month').value;
+        const day = parts.find(p => p.type === 'day').value;
+        const hour = parts.find(p => p.type === 'hour').value;
+        const minute = parts.find(p => p.type === 'minute').value;
+        return `${year}-${month}-${day}T${hour}:${minute}`;
+      });
+  }
+
+  // Função auxiliar para converter datetime do servidor (fuso de Rondonópolis) para datetime-local
+  // Os horários são salvos diretamente em Rondonópolis, então apenas retornamos o valor
+  function converterRdnParaLocal(datetimeStr) {
+    if (!datetimeStr) return null;
+    try {
+      // O datetime vem do servidor no formato YYYY-MM-DDTHH:MM já em Rondonópolis
+      // Como o campo datetime-local não tem timezone, retornamos diretamente
+      // O usuário está preenchendo em Rondonópolis mesmo
+      return datetimeStr;
+    } catch (e) {
+      console.error('Erro ao converter datetime:', e);
+      return datetimeStr;
+    }
+  }
+
+  // Função para gerenciar agendamento
+  function gerenciarAgendamento(id) {
+    // Carregar dados do agendamento e abrir modal
+    mostrarLoading('Carregando dados...');
+    fetch(`/rondonopolis/agendamentos/${id}/dados-etapas/`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(d => {
+        esconderLoading();
+        if (d.success) {
+          preencherFormularioGerenciar(d.agendamento);
+          document.getElementById('modal-gerenciar').classList.remove('hidden');
+        } else {
+          alert('Erro ao carregar dados: ' + (d.error || 'Erro desconhecido'));
+        }
+      })
+      .catch(() => {
+        esconderLoading();
+        alert('Erro de conexão ao carregar dados');
+      });
+  }
+
+  function fecharModalGerenciar() {
+    document.getElementById('modal-gerenciar').classList.add('hidden');
+  }
+
+  function preencherFormularioGerenciar(agendamento) {
+    document.getElementById('gerenciar-agendamento-id').value = agendamento.id;
+
+    // Função auxiliar para converter datetime do fuso de Rondonópolis para o fuso local do navegador
+    function converterRdnParaLocal(datetimeStr) {
+      if (!datetimeStr) return null;
+      try {
+        // Os horários são salvos diretamente em Rondonópolis
+        // O campo datetime-local não tem timezone, então retornamos diretamente
+        return datetimeStr;
+      } catch (e) {
+        console.error('Erro ao converter datetime:', e);
+        return datetimeStr;
+      }
+    }
+
+    // LÓGICA DE EXIBIÇÃO POR TIPO
+    // Entrega = 3 processos (Portaria -> Armazém -> Documentos)
+    // Coleta = 5 processos (Portaria -> Checklist -> Onda -> Armazém -> Documentos)
+
+    const sectionChecklist = document.getElementById('section-checklist');
+    const sectionOnda = document.getElementById('section-onda');
+    const ondaTituloTexto = document.getElementById('onda-titulo-texto');
+
+    if (agendamento.tipo === 'entrega') {
+      // Ocultar Checklist e mostrar Onda como "OD" para Entrega
+      if (sectionChecklist) sectionChecklist.classList.add('hidden');
+      if (sectionOnda) sectionOnda.classList.remove('hidden');
+      if (ondaTituloTexto) ondaTituloTexto.textContent = 'OD';
+    } else {
+      // Mostrar Checklist e Onda como "Onda" para Coleta (ou outros)
+      if (sectionChecklist) sectionChecklist.classList.remove('hidden');
+      if (sectionOnda) sectionOnda.classList.remove('hidden');
+      if (ondaTituloTexto) ondaTituloTexto.textContent = 'Onda';
+    }
+
+    // Portaria - converter para o fuso local do navegador
+    if (agendamento.portaria_liberacao) {
+      const valorConvertido = converterRdnParaLocal(agendamento.portaria_liberacao);
+      if (valorConvertido) {
+        document.getElementById('portaria-liberacao').value = valorConvertido;
+      }
+    }
+    if (agendamento.portaria_chegada_armazem) {
+      const valorConvertido = converterRdnParaLocal(agendamento.portaria_chegada_armazem);
+      if (valorConvertido) {
+        document.getElementById('portaria-chegada-armazem').value = valorConvertido;
+      }
+    }
+
+    // Checklist
+    document.getElementById('checklist-numero').value = agendamento.checklist_numero || '';
+    if (agendamento.checklist_data) {
+      const valorConvertido = converterRdnParaLocal(agendamento.checklist_data);
+      if (valorConvertido) {
+        document.getElementById('checklist-data').value = valorConvertido;
+      }
+    }
+    document.getElementById('checklist-observacao').value = agendamento.checklist_observacao || '';
+
+    // Armazém
+    if (agendamento.armazem_chegada) {
+      const valorConvertido = converterRdnParaLocal(agendamento.armazem_chegada);
+      if (valorConvertido) {
+        document.getElementById('armazem-chegada').value = valorConvertido;
+      }
+    }
+    if (agendamento.armazem_saida) {
+      const valorConvertido = converterRdnParaLocal(agendamento.armazem_saida);
+      if (valorConvertido) {
+        document.getElementById('armazem-saida').value = valorConvertido;
+      }
+    }
+    document.getElementById('armazem-saida-observacao').value = agendamento.armazem_saida_observacao || '';
+
+    // Documentos
+    if (agendamento.documentos_liberacao) {
+      const valorConvertido = converterRdnParaLocal(agendamento.documentos_liberacao);
+      if (valorConvertido) {
+        document.getElementById('documentos-liberacao').value = valorConvertido;
+      }
+    }
+    document.getElementById('documentos-observacao').value = agendamento.documentos_observacao || '';
+
+    // Onda
+    document.getElementById('onda-status').value = agendamento.onda_status || 'aguardando';
+    if (agendamento.onda_liberacao) {
+      const valorConvertido = converterRdnParaLocal(agendamento.onda_liberacao);
+      if (valorConvertido) {
+        document.getElementById('onda-liberacao').value = valorConvertido;
+      }
+    }
+  }
+
+  function salvarEtapas() {
+    const form = document.getElementById('form-gerenciar-etapas');
+    const formData = new FormData(form);
+
+    // Converter os valores datetime-local do fuso local do navegador para o formato de Rondonópolis
+    // O campo datetime-local retorna valores no fuso local do navegador
+    // Mas o usuário está preenchendo o horário de Rondonópolis
+    // Precisamos converter do fuso local para Rondonópolis antes de enviar ao servidor
+    function converterLocalParaRdn(datetimeStr) {
+      if (!datetimeStr) return null;
+      try {
+        // O campo datetime-local retorna no fuso local do navegador
+        // Quando o usuário preenche "10:00", ele quer dizer "10:00 de Rondonópolis"
+        // Mas o campo retorna "10:00" no fuso local
+
+        // Criar data no fuso local (o que o campo retorna)
+        const dateLocal = new Date(datetimeStr);
+
+        // Os horários são salvos diretamente em Rondonópolis
+        // O campo datetime-local retorna valores sem timezone
+        // O usuário está preenchendo em Rondonópolis, então retornamos diretamente
+        return datetimeStr;
+      } catch (e) {
+        console.error('Erro ao converter datetime:', e);
+        return datetimeStr;
+      }
+    }
+
+    // Converter todos os campos datetime antes de enviar
+    const camposDatetime = ['portaria_liberacao', 'portaria_chegada_armazem', 'checklist_data', 'armazem_chegada', 'armazem_saida', 'onda_liberacao', 'documentos_liberacao'];
+    camposDatetime.forEach(campo => {
+      const valor = formData.get(campo);
+      if (valor) {
+        const valorConvertido = converterLocalParaRdn(valor);
+        if (valorConvertido) {
+          formData.set(campo, valorConvertido);
+        }
+      }
+    });
+
+    mostrarLoading('Salvando alterações...');
+    fetch('/rondonopolis/agendamentos/salvar-etapas/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: formData
+    })
+      .then(r => r.json())
+      .then(d => {
+        esconderLoading();
+        if (d.success) {
+          alert('Etapas atualizadas com sucesso!');
+          fecharModalGerenciar();
+          window.location.reload();
+        } else {
+          alert('Erro ao salvar: ' + (d.error || 'Erro desconhecido'));
+        }
+      })
+      .catch(() => {
+        esconderLoading();
+        alert('Erro de conexão ao salvar');
+      });
+  }
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+
+</script>
+
+<style>
+  /* Melhorias para mobile */
+  @media (max-width: 768px) {
+    .actions-dropdown-menu {
+      position: fixed !important;
+      bottom: 1rem !important;
+      left: 1rem !important;
+      right: 1rem !important;
+      width: auto !important;
+      max-width: none !important;
+    }
+
+    .actions-dropdown-menu .py-1 {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .actions-dropdown-menu a {
+      padding: 1rem;
+      font-size: 1rem;
+    }
+
+    /* Tooltip responsivo */
+    .group:hover .group-hover\\:block {
+      display: block !important;
+    }
+  }
+
+  /* Remove qualquer barra de rolagem horizontal */
+  .container {
+    overflow-x: hidden;
+  }
+
+  /* Estilos para o novo sistema de dropdown */
+  .dropdown-container {
+    position: relative;
+  }
+
+  .dropdown-toggle {
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    display: block;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .dropdown-menu.hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  .dropdown-item {
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+  }
+
+  /* Estilos para o modal de impressão */
+  #modal-impressao {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  #modal-impressao>div {
+    max-height: calc(100vh - 2rem);
+    min-height: 400px;
+  }
+
+  /* Área de scroll do conteúdo */
+  #modal-impressao .p-6 {
+    max-height: calc(90vh - 140px);
+    /* Altura total menos header e footer */
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #conteudo-impressao {
+    max-width: 100%;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: fit-content;
+  }
+
+  #conteudo-impressao * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  #conteudo-impressao .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    padding: 6px !important;
+  }
+
+  #conteudo-impressao table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto;
+  }
+
+  #conteudo-impressao img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  #conteudo-impressao .row {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #conteudo-impressao .col {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Garantir que o container do dropdown tenha position relative */
+  div.relative {
+    position: relative !important;
+  }
+
+  /* Garantir que a célula da tabela também tenha position relative para o menu aparecer corretamente */
+  td {
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  td>div.relative {
+    position: relative !important;
+  }
+
+  /* Garantir que o menu não seja cortado pela tabela */
+  table {
+    position: relative !important;
+  }
+
+  tbody {
+    position: relative !important;
+  }
+
+  tr {
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  /* Garantir que o container da tabela não corte o menu */
+  .overflow-x-auto {
+    overflow-y: visible !important;
+  }
+
+  /* Garantir que o container principal não corte o menu */
+  main {
+    overflow-y: auto !important;
+    overflow-x: visible !important;
+  }
+
+  /* Garantir que o menu dropdown apareça acima de tudo */
+  .actions-dropdown-menu {
+    z-index: 100000 !important;
+  }
+
+  /* Quando o menu está visível, garantir que não seja cortado */
+  .actions-dropdown-menu:not(.hidden) {
+    z-index: 100000 !important;
+  }
+
+  /* Garantir que elementos com overflow não cortem o menu */
+  div[class*="overflow"] {
+    overflow-y: visible !important;
+  }
+
+  /* Melhorias de espaçamento para mobile */
+  @media (max-width: 640px) {
+    /* Removido CSS que cortava as bordas dos cards */
+  }
+
+  /* Otimizações para telas intermediárias (1024px - 1920px) */
+  @media (min-width: 1024px) and (max-width: 1919px) {
+
+    /* Reduzir um pouco os tamanhos de fonte em tabelas */
+    table {
+      font-size: 0.8125rem;
+      /* 13px ao invés de 14px padrão */
+    }
+
+    /* Reduzir padding das células da tabela */
+    table td,
+    table th {
+      padding: 0.625rem 0.75rem !important;
+      /* py-2.5 px-3 ao invés de py-4 px-4 */
+    }
+
+    /* Reduzir espaçamento entre colunas de filtros */
+    .flex.flex-wrap.gap-3 {
+      gap: 0.625rem !important;
+      /* gap-2.5 */
+    }
+
+    /* Ajustar tamanho dos inputs e selects */
+    input[type="text"],
+    input[type="date"],
+    select {
+      padding: 0.375rem 0.625rem !important;
+      /* py-1.5 px-2.5 */
+      font-size: 0.8125rem !important;
+      /* text-xs */
+    }
+
+    /* Reduzir tamanho dos botões */
+    button.bg-sky-600,
+    button.bg-gray-200 {
+      padding: 0.375rem 0.75rem !important;
+      /* py-1.5 px-3 */
+      font-size: 0.8125rem !important;
+    }
+
+    /* Reduzir espaçamento dos cards mobile (se aparecerem) */
+    .space-y-3>div {
+      margin-bottom: 0.625rem !important;
+    }
+
+    /* Ajustar tamanhos de fonte em cards */
+    .text-base {
+      font-size: 0.875rem !important;
+      /* text-sm */
+    }
+
+    .text-sm {
+      font-size: 0.75rem !important;
+      /* text-xs */
+    }
+
+    /* Reduzir padding dos cards */
+    .bg-white.rounded-lg.shadow-sm.border {
+      padding: 0.625rem !important;
+      /* p-2.5 */
+    }
+  }
+
+  /* Animações suaves */
+  #filters-content {
+    transition: all 0.3s ease-in-out;
+  }
+</style>
+<!-- Modal de Exibição de Processo -->
+<div id="modal-exibir"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10003] p-4 overflow-hidden">
+  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full h-[85vh] flex flex-col overflow-hidden">
+    <div class="flex justify-between items-center p-4 border-b border-gray-200 shrink-0 bg-white">
+      <h3 class="text-lg font-semibold text-gray-900">Detalhes do Processo</h3>
+      <button onclick="fecharModalExibir()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-2xl"></i>
+      </button>
+    </div>
+
+    <div class="p-6 bg-gray-50 overflow-y-auto flex-1 overflow-x-hidden">
+      <div id="conteudo-exibir" class="space-y-4">
+        <!-- Informações Básicas -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-info-circle mr-2 text-sky-600"></i> Informações Básicas
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Ordem</label>
+              <p class="text-sm text-gray-900 font-semibold" id="exibir-ordem">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Tipo</label>
+              <p class="text-sm" id="exibir-tipo">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Motorista</label>
+              <p class="text-sm text-gray-900" id="exibir-motorista">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Placa do Veículo</label>
+              <p class="text-sm text-gray-900 font-mono" id="exibir-placa">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Tipo de Veículo</label>
+              <p class="text-sm text-gray-900" id="exibir-tipo-veiculo">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Transportadora</label>
+              <p class="text-sm text-gray-900" id="exibir-transportadora">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dados de Agendamento -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-calendar-check mr-2 text-sky-600"></i> Agendamento
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Data</label>
+              <p class="text-sm text-gray-900" id="exibir-data">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Horário</label>
+              <p class="text-sm text-gray-900" id="exibir-horario">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Peso</label>
+              <p class="text-sm text-gray-900" id="exibir-peso">-</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Chegada Armazém (Portaria)</label>
+              <p class="text-sm text-gray-900" id="exibir-portaria-chegada-armazem">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Etapas do Processo -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-list-check mr-2 text-sky-600"></i> Etapas do Processo
+          </h4>
+          <div id="exibir-etapas" class="space-y-2">
+            <!-- Etapas serão inseridas aqui via JavaScript -->
+          </div>
+        </div>
+
+        <!-- Observações do Checklist -->
+        <div id="exibir-observacoes-container" class="bg-white p-4 rounded-lg border border-gray-200">
+          <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+            <i class="bi bi-chat-left-text mr-2 text-sky-600"></i> Observações
+          </h4>
+          <div class="space-y-4">
+            <!-- Checklist -->
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Número do Checklist</label>
+              <p class="text-sm text-gray-900 mb-2" id="exibir-checklist-numero">-</p>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Observações do Checklist</label>
+              <p class="text-sm text-gray-700 whitespace-pre-wrap" id="exibir-observacao">Nenhuma observação registrada
+              </p>
+            </div>
+
+            <!-- Armazém -->
+            <div class="pt-3 border-t border-gray-200">
+              <label class="block text-xs font-medium text-gray-500 mb-1">Observações do Armazém</label>
+              <p class="text-sm text-gray-700 whitespace-pre-wrap" id="exibir-armazem-observacao">Nenhuma observação
+                registrada</p>
+            </div>
+
+            <!-- Documentos -->
+            <div class="pt-3 border-t border-gray-200">
+              <label class="block text-xs font-medium text-gray-500 mb-1">Observações dos Documentos</label>
+              <p class="text-sm text-gray-700 whitespace-pre-wrap" id="exibir-documentos-observacao">Nenhuma observação
+                registrada</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 p-4 border-t border-gray-200 bg-white shrink-0">
+      <button onclick="fecharModalExibir()"
+        class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded-md flex items-center gap-2 transition-colors">
+        Fechar
+      </button>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Função para exibir processo
+  function exibirProcesso(id) {
+    mostrarLoading('Carregando detalhes do processo...');
+    fetch(`/rondonopolis/processos/exibir/${id}/`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(d => {
+        esconderLoading();
+        if (d.success) {
+          popularModalExibir(d.processo);
+          document.getElementById('modal-exibir').classList.remove('hidden');
+        } else {
+          alert('Erro ao carregar detalhes: ' + (d.error || 'Erro desconhecido'));
+        }
+      })
+      .catch(() => {
+        esconderLoading();
+        alert('Erro de conexão ao carregar detalhes do processo');
+      });
+  }
+
+  function popularModalExibir(processo) {
+    // Informações básicas
+    document.getElementById('exibir-ordem').textContent = processo.ordem || '-';
+
+    // Tipo com badge colorido
+    const tipoEl = document.getElementById('exibir-tipo');
+    if (processo.tipo === 'coleta') {
+      tipoEl.innerHTML = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200">' + processo.tipo_display + '</span>';
+    } else {
+      tipoEl.innerHTML = '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">' + processo.tipo_display + '</span>';
+    }
+
+    document.getElementById('exibir-motorista').textContent = processo.motorista || '-';
+    document.getElementById('exibir-placa').textContent = processo.placa_veiculo || '-';
+    document.getElementById('exibir-tipo-veiculo').textContent = processo.tipo_veiculo || '-';
+    document.getElementById('exibir-transportadora').textContent = processo.transportadora || '-';
+
+    // Dados de agendamento
+    document.getElementById('exibir-data').textContent = processo.data_agendada || '-';
+
+    const horarioEl = document.getElementById('exibir-horario');
+    if (processo.horario_agendado === '00:00') {
+      horarioEl.innerHTML = '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>';
+    } else {
+      horarioEl.textContent = processo.horario_agendado || '-';
+    }
+
+    document.getElementById('exibir-peso').textContent = processo.peso ? processo.peso.toLocaleString('pt-BR') + ' kg' : '-';
+    document.getElementById('exibir-portaria-chegada-armazem').textContent = processo.portaria_chegada_armazem || '-';
+
+    // Etapas
+    const etapasContainer = document.getElementById('exibir-etapas');
+    etapasContainer.innerHTML = '';
+
+    if (processo.etapas && processo.etapas.length > 0) {
+      processo.etapas.forEach(etapa => {
+        const etapaDiv = document.createElement('div');
+        etapaDiv.className = 'flex items-center justify-between p-3 rounded-lg ' +
+          (etapa.concluida ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-200');
+
+        const statusIcon = etapa.concluida
+          ? '<i class="bi bi-check-circle-fill text-emerald-600 mr-2"></i>'
+          : '<i class="bi bi-circle text-gray-400 mr-2"></i>';
+
+        const infoHtml = etapa.concluida && etapa.data
+          ? `<div class="text-xs text-gray-600 mt-1">
+             <i class="bi bi-clock mr-1"></i>${etapa.data}
+             ${etapa.usuario ? `<span class="ml-2"><i class="bi bi-person mr-1"></i>${etapa.usuario}</span>` : ''}
+           </div>`
+          : '';
+
+        etapaDiv.innerHTML = `
+        <div class="flex-1">
+          <div class="flex items-center">
+            ${statusIcon}
+            <span class="font-medium text-gray-900">${etapa.nome}</span>
+          </div>
+          ${infoHtml}
+        </div>
+        <div>
+          ${etapa.concluida
+            ? '<span class="text-xs font-medium text-emerald-700">Concluída</span>'
+            : '<span class="text-xs font-medium text-gray-500">Pendente</span>'}
+        </div>
+      `;
+
+        etapasContainer.appendChild(etapaDiv);
+      });
+    } else {
+      etapasContainer.innerHTML = '<p class="text-sm text-gray-500">Nenhuma etapa registrada</p>';
+    }
+
+    // Observações do checklist
+    const checklistNumero = processo.checklist_numero || '-';
+    const observacao = processo.checklist_observacao || 'Nenhuma observação registrada';
+
+    document.getElementById('exibir-checklist-numero').textContent = checklistNumero;
+    document.getElementById('exibir-observacao').textContent = observacao;
+
+    // Observações do armazém
+    const armazemObservacao = processo.armazem_observacao || 'Nenhuma observação registrada';
+    document.getElementById('exibir-armazem-observacao').textContent = armazemObservacao;
+
+    // Observações dos documentos
+    const documentosObservacao = processo.documentos_observacao || 'Nenhuma observação registrada';
+    document.getElementById('exibir-documentos-observacao').textContent = documentosObservacao;
+
+    // Sempre mostrar seção de observações (agora inclui armazém e documentos)
+    const observacoesContainer = document.getElementById('exibir-observacoes-container');
+    observacoesContainer.style.display = 'block';
+  }
+
+  function fecharModalExibir() {
+    document.getElementById('modal-exibir').classList.add('hidden');
+  }
+
+  // Adicionar handler para ação "exibir" nos dropdowns
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.dropdown-item[data-action="exibir"]').forEach(item => {
+      item.addEventListener('click', function (e) {
+        e.preventDefault();
+        const id = parseInt(this.getAttribute('data-id'));
+        exibirProcesso(id);
+      });
+    });
+  });
+</script>
+
+{% endblock %}

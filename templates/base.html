@@ -1,0 +1,269 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br" x-data="{ menuOpen: false, processosOpen: false, settingsOpen: false }">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Sistema{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'imagens/icone.png' %}">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- No seu base.html, adicione: -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  
+  <style>
+    html, body {
+      height: 100%;
+    }
+    /* Animação do loading */
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4">
+      <div class="flex flex-col items-center">
+        <!-- Spinner -->
+        <div class="relative w-16 h-16 mb-4">
+          <div class="absolute inset-0">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+          </div>
+          <div class="flex items-center justify-center h-full">
+            <i class="bi bi-building text-blue-600 text-xl"></i>
+          </div>
+        </div>
+        
+        <!-- Textos -->
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">Trocando de operação</h3>
+        <p class="text-gray-600 text-center text-sm">
+          Estamos redirecionando você para a operação selecionada
+        </p>
+        
+        <!-- Barra de progresso -->
+        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-4">
+          <div class="bg-blue-600 h-1.5 rounded-full animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENU LATERAL (Desktop) -->
+  <aside class="hidden lg:flex w-72 bg-white border-r border-slate-200 flex-col shadow-sm h-screen fixed">
+    <!-- Logo -->
+    <div class="p-6 border-b border-slate-100 flex items-center justify-center">
+      <img src="{% static 'imagens/Transcamila.png' %}" alt="Logo Transcamila" class="h-10 object-contain" />
+    </div>
+
+    <!-- Navegação -->
+    <nav class="flex-1 px-4 py-4 space-y-1 text-sm font-medium overflow-y-auto">
+      <a href="{% url 'painel_tv' %}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all
+        {% if request.resolver_match.url_name == 'painel_tv' %}bg-blue-50 text-slate-700 font-normal{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-tv text-lg"></i>
+        <span>Painel</span>
+      </a>
+
+      <div x-data="{ open: {% if request.resolver_match.url_name in 'lancamento_list processos_finalizados' %}true{% else %}false{% endif %} }">
+        <button @click="open = !open" class="flex items-center justify-between w-full px-4 py-2 rounded-lg hover:bg-slate-100 transition-all text-slate-700">
+          <div class="flex items-center gap-3">
+            <i class="bi bi-folder text-lg"></i>
+            <span>Processos</span>
+          </div>
+          <i class="bi bi-chevron-down text-xs transition-transform duration-200" :class="{'rotate-180': open}"></i>
+        </button>
+        
+        <div x-show="open" x-collapse class="ml-8 mt-1 space-y-1" style="display: none;">
+          <a href="{% url 'lancamento_list' %}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all
+            {% if request.resolver_match.url_name == 'lancamento_list' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600 pl-3{% else %}pl-4 text-slate-700{% endif %}">
+            <i class="bi bi-card-checklist text-lg"></i>
+            <span>Gerenciar Processos</span>
+          </a>
+          <a href="{% url 'processos_finalizados' %}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all
+            {% if request.resolver_match.url_name == 'processos_finalizados' %}bg-blue-50 text-slate-700 font-normal border-l-4 border-sky-600 pl-3{% else %}pl-4 text-slate-700{% endif %}">
+            <i class="bi bi-archive text-lg"></i>
+            <span>Processos Finalizados</span>
+          </a>
+        </div>
+      </div>
+
+      <a href="{% url 'configuracoes' %}" class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-slate-100 transition-all
+        {% if request.resolver_match.url_name == 'configuracoes' %}bg-blue-50 text-slate-700 font-normal{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-gear text-lg"></i>
+        <span>Configurações</span>
+      </a>
+    </nav>
+
+    <!-- Rodapé -->
+    <div class="px-4 py-5 border-t border-slate-100 text-sm text-slate-500 bg-white">
+      <!-- Seletor de Filial (APENAS para usuários com múltiplas filiais) -->
+      {% if filiais_usuario|length > 1 %}
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-500 mb-2">TROCAR OPERAÇÃO</label>
+        <select 
+          onchange="trocarFilial(this.value)" 
+          class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          id="filialSelect"
+        >
+          {% for filial in filiais_usuario %}
+            <option value="{{ filial.id }}" 
+                    {% if filial.id == filial_atual.id %}selected{% endif %}>
+              {{ filial.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <!-- Menu de Configurações do Usuário -->
+      <div class="mb-4 settings-transition" x-show="settingsOpen" x-transition>
+        <div class="space-y-2 border-t border-slate-100 pt-3">
+          <a href="{% url 'configuracoes_perfil' %}" class="flex items-center gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-50 px-2 py-1 rounded text-xs">
+            <i class="bi bi-sliders text-sm"></i>
+            <span>Configurações e perfil</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 flex-1">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">
+            {{ request.user.get_full_name|default:request.user.username|slice:":1" }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-slate-800 truncate">
+              {{ request.user.get_full_name|default:request.user.username }}
+            </div>
+            {% if filial_atual %}
+            <div class="text-xs text-slate-500 truncate">{{ filial_atual.nome }}</div>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-1">
+          <!-- Botão Configurações -->
+          <button @click="settingsOpen = !settingsOpen" 
+                  class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  :class="{'text-blue-600 bg-blue-50': settingsOpen}">
+            <i class="bi bi-gear text-lg"></i>
+          </button>
+          
+          <!-- Botão Logout -->
+          <a href="{% url 'logout' %}" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg transition-colors">
+            <i class="bi bi-box-arrow-right text-lg"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="p-8 overflow-y-auto h-screen lg:ml-72 pb-20 lg:pb-0">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- BARRA INFERIOR (Mobile) -->
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center py-2 shadow-md z-40" x-data="{ processosOpen: false }">
+    <!-- Painel -->
+    <a href="{% url 'painel_tv' %}" class="flex flex-col items-center text-sm px-3 py-1 rounded-md transition-all
+      {% if request.resolver_match.url_name == 'painel_tv' %}bg-blue-50 text-slate-700 font-normal{% else %}text-slate-600{% endif %}">
+      <i class="bi bi-tv text-xl"></i>
+      <span>Painel</span>
+    </a>
+
+    <!-- Processos -->
+    <button @click="processosOpen = !processosOpen" class="flex flex-col items-center text-sm px-3 py-1 rounded-md transition-all"
+      :class="processosOpen ? 'bg-blue-50 text-slate-700 font-normal' : 'text-slate-600'">
+      <i class="bi bi-folder text-xl"></i>
+      <span>Processos</span>
+    </button>
+
+    <!-- Configurações -->
+    <div x-data="{ open: false }" class="relative">
+      <button @click="open = !open" class="flex flex-col items-center text-sm px-3 py-1 rounded-md transition-all"
+        :class="open ? 'bg-blue-50 text-slate-700 font-normal' : 'text-slate-600'">
+        <i class="bi bi-gear text-xl"></i>
+        <span>Config.</span>
+      </button>
+      <div x-show="open" @click.away="open = false" class="absolute bottom-12 left-1/2 -translate-x-1/2 w-44 bg-white rounded-lg shadow-lg border border-slate-200 p-2 z-40">
+        <a href="{% url 'configuracoes' %}" class="block px-3 py-2 rounded hover:bg-slate-100 text-slate-700">Configurações</a>
+        <a href="{% url 'logout' %}" class="block px-3 py-2 rounded hover:bg-red-100 text-red-600 mt-1">Sair</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- SUBMENU MOBILE (Processos) -->
+  <div x-show="processosOpen" @click.away="processosOpen = false" class="lg:hidden fixed bottom-14 inset-x-0 flex justify-center z-40">
+    <div class="bg-white rounded-lg shadow-lg border border-slate-200 p-2 w-56">
+      <a href="{% url 'lancamento_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 transition-all
+        {% if request.resolver_match.url_name == 'lancamento_list' %}bg-blue-50 text-slate-700 font-normal{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-card-checklist"></i> Gerenciar Processos
+      </a>
+      <a href="{% url 'processos_finalizados' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 transition-all
+        {% if request.resolver_match.url_name == 'processos_finalizados' %}bg-blue-50 text-slate-700 font-normal{% else %}text-slate-700{% endif %}">
+        <i class="bi bi-archive"></i> Processos Finalizados
+      </a>
+    </div>
+  </div>
+
+  <!-- Alpine JS -->
+  <script src="//unpkg.com/alpinejs" defer></script>
+
+  <!-- Script para trocar filial com loading -->
+  <script>
+    function trocarFilial(filialId) {
+      if (filialId) {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const filialSelect = document.getElementById('filialSelect');
+
+        loadingOverlay.classList.remove('hidden');
+        if (filialSelect) filialSelect.disabled = true;
+
+        const url = "{% url 'selecionar_filial' 0 %}".replace('0', filialId);
+
+        // Simula um tempo fictício de 1,5 segundos
+        setTimeout(() => {
+          fetch(url, {
+            method: 'GET',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(response => {
+            if (response.redirected) {
+              window.location.href = response.url;
+            } else {
+              window.location.reload();
+            }
+          })
+          .catch(error => {
+            console.error('Erro:', error);
+            loadingOverlay.classList.add('hidden');
+            if (filialSelect) filialSelect.disabled = false;
+            alert('Erro ao trocar filial. Tente novamente.');
+          });
+        }, 500); // 1500ms = 1,5s
+
+        // Timeout de segurança (20 segundos)
+        setTimeout(() => {
+          if (!loadingOverlay.classList.contains('hidden')) {
+            loadingOverlay.classList.add('hidden');
+            if (filialSelect) filialSelect.disabled = false;
+          }
+        }, 20000);
+      }
+    }
+  </script>
+
+</body>
+</html>

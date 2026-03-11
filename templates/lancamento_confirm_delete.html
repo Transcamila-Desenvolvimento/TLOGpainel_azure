@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Excluir Lançamento{% endblock %}
+
+{% block content %}
+  <h1 class="text-xl font-semibold mb-4">Tem certeza que deseja excluir este lançamento?</h1>
+  <p><strong>PO:</strong> {{ lancamento.po }}</p>
+  <p><strong>Destino:</strong> {{ lancamento.destino }}</p>
+  <p><strong>Status:</strong> {{ lancamento.status }}</p>
+
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Sim, excluir</button>
+    <a href="{% url 'lancamento_list' %}" class="ml-4 text-gray-700 hover:underline">Cancelar</a>
+  </form>
+{% endblock %}

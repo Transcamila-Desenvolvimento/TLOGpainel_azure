@@ -1,0 +1,1700 @@
+{% extends 'baserdn.html' %}
+{% load static %}
+
+{% block title %}Agendamentos - Operação Rondonópolis{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 xl:mb-4 gap-3 xl:gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-sky-600"></span>
+    <h1 class="text-xl lg:text-xl xl:text-2xl font-semibold text-gray-900">Agendamentos</h1>
+  </div>
+  <div class="flex gap-2 w-full md:w-auto">
+    <!-- Botão para abrir modal de inclusão manual -->
+    <button onclick="abrirModalInclusao()" class="flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 md:px-4 py-2 rounded-md shadow flex-1 md:flex-none">
+      <i class="bi bi-plus-lg"></i>
+      <span class="hidden sm:inline">Incluir Agendamento</span>
+      <span class="sm:hidden">Incluir</span>
+    </button>
+
+    <!-- Botão para abrir modal de importação -->
+    <button onclick="abrirModalImportacao()" class="flex items-center justify-center gap-2 border border-gray-300 text-gray-700 text-sm px-3 py-2 rounded-md bg-white hover:bg-gray-50 shadow-sm">
+      <i class="bi bi-upload"></i>
+      <span class="hidden sm:inline">Importar</span>
+    </button>
+
+    <button onclick="exportarAgendamentos()" class="flex items-center justify-center gap-2 border border-gray-300 text-gray-700 text-sm px-3 py-2 rounded-md bg-white hover:bg-gray-50 shadow-sm">
+      <i class="bi bi-box-arrow-up"></i>
+      <span class="hidden sm:inline">Exportar</span>
+    </button>
+  </div>
+</div>
+
+<!-- Filtros Colapsáveis para Mobile -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 xl:mb-6">
+  <!-- Header dos Filtros -->
+  <div class="flex items-center justify-between p-4 border-b border-gray-200 md:hidden">
+    <h2 class="text-lg font-medium text-gray-900">Filtros</h2>
+    <button type="button" id="toggle-filters" class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
+      <i class="bi bi-funnel text-base"></i>
+    </button>
+  </div>
+
+  <!-- Conteúdo dos Filtros -->
+  <div id="filters-content" class="hidden md:block p-3 md:p-4">
+    <form id="form-filtros" method="GET" class="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4 items-start">
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Data Agendada</label>
+        <input type="date" id="filtro-data" name="data" value="{% if request.GET.data %}{{ request.GET.data }}{% else %}{{ data_selecionada }}{% endif %}" class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+      </div>
+      
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        <select id="filtro-tipo" name="tipo" class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+          <option value="">Todos os tipos</option>
+          <option value="coleta" {% if request.GET.tipo == 'coleta' %}selected{% endif %}>Coleta</option>
+          <option value="entrega" {% if request.GET.tipo == 'entrega' %}selected{% endif %}>Entrega</option>
+        </select>
+      </div>
+      
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Transportadora</label>
+        <select id="filtro-transportadora" name="transportadora" class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+          <option value="">Todas as transportadoras</option>
+          {% for transportadora in transportadoras %}
+            <option value="{{ transportadora.id }}" {% if request.GET.transportadora|stringformat:"s" == transportadora.id|stringformat:"s" %}selected{% endif %}>
+              {{ transportadora.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="w-full sm:flex-1 min-w-0">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+        <input type="text" id="filtro-busca" name="busca" value="{{ request.GET.busca }}" placeholder="Ordem, motorista, placa..." class="w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 text-sm">
+      </div>
+      
+      <div class="w-full sm:w-auto self-end flex gap-2 mt-2 sm:mt-0">
+        <button id="btn-limpar-filtros" type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none">
+          Limpar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabela para desktop -->
+<div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+  <table class="min-w-full text-sm xl:text-[14px]">
+    <thead>
+      <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+        <th class="py-2 px-3 text-left font-medium">Motorista</th>
+        <th class="py-2 px-3 text-left font-medium">Agendamento</th>
+        <th class="py-2 px-3 text-left font-medium">Tipo</th>
+        <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
+        <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+        <th class="py-2 px-3 text-left font-medium">Peso</th>
+        <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
+        <th class="py-2 px-3 text-left font-medium">Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tabela-agendamentos">
+      {% for agendamento in agendamentos %}
+      <tr class="border-b border-gray-100 hover:bg-gray-50">
+        <td class="py-2 px-3 font-medium text-gray-900">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+            {{ agendamento.motorista.nome }}
+          </div>
+        </td>
+        <td class="py-2 px-3 text-gray-800">
+          <span class="font-medium">{{ agendamento.data_agendada|date:"d/m/Y" }} 
+            {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+              {{ agendamento.horario_agendado|time:"H:i" }}
+            {% endif %}
+          </span>
+        </td>
+        <td class="py-2 px-3">
+          {% if agendamento.tipo == 'coleta' %}
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">
+              Coleta
+            </span>
+          {% else %}
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-green-700 bg-green-50 text-xs font-medium border border-green-100">
+              Entrega
+            </span>
+          {% endif %}
+        </td>
+        <td class="py-2 px-3 font-mono text-gray-800">{{ agendamento.placa_veiculo }}</td>
+        <td class="py-2 px-3">{{ agendamento.transportadora.nome }}</td>
+        <td class="py-2 px-3">{{ agendamento.peso }} kg</td>
+        <td class="py-2 px-3">{{ agendamento.get_tipo_veiculo_display }}</td>
+        <td class="py-2 px-3">
+          <div class="flex gap-1.5">
+            <button onclick="editarAgendamento({{ agendamento.id }})" 
+                    class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-sky-600 bg-white border border-sky-200 rounded-md hover:bg-sky-50 hover:border-sky-300 transition-all duration-200 hover:shadow-sm" 
+                    title="Editar agendamento">
+              <i class="bi bi-pencil text-sm"></i>
+            </button>
+            <button onclick="excluirAgendamento({{ agendamento.id }}, '{{ agendamento.motorista.nome|escapejs }}', '{{ agendamento.data_agendada|date:"d/m/Y" }}', '{{ agendamento.horario_agendado|time:"H:i" }}', '{{ agendamento.placa_veiculo|escapejs }}', '{{ agendamento.get_tipo_display|escapejs }}')" 
+                    class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-md hover:bg-red-50 hover:border-red-300 transition-all duration-200 hover:shadow-sm" 
+                    title="Excluir agendamento">
+              <i class="bi bi-trash text-sm"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum agendamento encontrado</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Cards para Mobile -->
+<div class="md:hidden space-y-3">
+  {% for agendamento in agendamentos %}
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+    <div class="flex items-start justify-between mb-3">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+          <h3 class="font-semibold text-gray-900 text-sm truncate">{{ agendamento.motorista.nome }}</h3>
+        </div>
+        <div class="space-y-1.5 text-xs text-gray-600">
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-calendar text-gray-400 text-xs"></i>
+            <span>{{ agendamento.data_agendada|date:"d/m/Y" }} às 
+              {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                <span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+              {% else %}
+                {{ agendamento.horario_agendado|time:"H:i" }}
+              {% endif %}
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-tag text-gray-400 text-xs"></i>
+            {% if agendamento.tipo == 'coleta' %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+            {% else %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-truck text-gray-400 text-xs"></i>
+            <span class="font-mono">{{ agendamento.placa_veiculo }}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-building text-gray-400 text-xs"></i>
+            <span class="truncate">{{ agendamento.transportadora.nome }}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-box-seam text-gray-400 text-xs"></i>
+            <span>{{ agendamento.peso }} kg</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-truck text-gray-400 text-xs"></i>
+            <span>{{ agendamento.get_tipo_veiculo_display }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-2 pt-2 border-t border-gray-100">
+      <button onclick="editarAgendamento({{ agendamento.id }})" 
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-sky-600 bg-white border border-sky-200 rounded-md hover:bg-sky-50 transition-colors">
+        <i class="bi bi-pencil text-sm"></i>
+        <span>Editar</span>
+      </button>
+      <button onclick="excluirAgendamento({{ agendamento.id }}, '{{ agendamento.motorista.nome|escapejs }}', '{{ agendamento.data_agendada|date:"d/m/Y" }}', '{{ agendamento.horario_agendado|time:"H:i" }}', '{{ agendamento.placa_veiculo|escapejs }}', '{{ agendamento.get_tipo_display|escapejs }}')" 
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-md hover:bg-red-50 transition-colors">
+        <i class="bi bi-trash text-sm"></i>
+        <span>Excluir</span>
+      </button>
+    </div>
+  </div>
+  {% empty %}
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+    <p class="text-gray-400 text-sm">Nenhum agendamento encontrado</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Modal de Inclusão Manual -->
+<div id="modalInclusao" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-2 sm:mx-0 max-h-[90vh] overflow-y-auto">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Incluir Agendamento</h1>
+      </div>
+      <button onclick="fecharModalInclusao()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="formInclusao" method="post" action="#">
+      {% csrf_token %}
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Motorista -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label for="motorista" class="block text-sm font-medium text-gray-700">Motorista *</label>
+              <button type="button" onclick="abrirModalMotorista()" class="text-xs text-sky-600 hover:text-sky-700 flex items-center gap-1">
+                <i class="bi bi-plus-circle"></i>
+                <span>Cadastrar novo</span>
+              </button>
+            </div>
+            <select id="motorista" name="motorista" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione um motorista</option>
+              {% for motorista in motoristas %}
+                <option value="{{ motorista.id }}">{{ motorista.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Data Agendada -->
+          <div>
+            <label for="data_agendada" class="block text-sm font-medium text-gray-700 mb-1">Data Agendada *</label>
+            <input type="date" id="data_agendada" name="data_agendada" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+          </div>
+
+          <!-- Horário Agendado -->
+          <div id="horario_container">
+            <div class="flex items-center justify-between mb-1">
+              <label for="horario_agendado" class="block text-sm font-medium text-gray-700">
+                Horário Agendado <span id="horario_required" class="text-red-500">*</span>
+              </label>
+              <label for="encaixe" class="flex items-center gap-2 cursor-pointer">
+                <span class="text-xs text-gray-600">Encaixe</span>
+                <div class="relative">
+                  <input type="checkbox" id="encaixe" name="encaixe" 
+                         class="sr-only peer"
+                         onchange="toggleHorarioAgendado()">
+                  <div class="w-10 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-500 peer-focus:ring-offset-2 rounded-full peer peer-checked:bg-sky-600 transition-colors duration-200 ease-in-out"></div>
+                  <div class="absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
+                </div>
+              </label>
+            </div>
+            <input type="time" id="horario_agendado" name="horario_agendado" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all">
+          </div>
+
+          <!-- Tipo -->
+          <div>
+            <label for="tipo" class="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+            <select id="tipo" name="tipo" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione o tipo</option>
+              <option value="coleta">Coleta</option>
+              <option value="entrega">Entrega</option>
+            </select>
+          </div>
+
+          <!-- Placa do Veículo -->
+          <div>
+            <label for="placa_veiculo" class="block text-sm font-medium text-gray-700 mb-1">Placa do Veículo *</label>
+            <input type="text" id="placa_veiculo" name="placa_veiculo" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 uppercase"
+                   placeholder="ABC1D23" maxlength="7">
+          </div>
+
+          <!-- Transportadora -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label for="transportadora" class="block text-sm font-medium text-gray-700">Transportadora *</label>
+              <button type="button" onclick="abrirModalTransportadora()" class="text-xs text-sky-600 hover:text-sky-700 flex items-center gap-1">
+                <i class="bi bi-plus-circle"></i>
+                <span>Cadastrar nova</span>
+              </button>
+            </div>
+            <select id="transportadora" name="transportadora" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione uma transportadora</option>
+              {% for transportadora in transportadoras %}
+                <option value="{{ transportadora.id }}">{{ transportadora.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Peso -->
+          <div>
+            <label for="peso" class="block text-sm font-medium text-gray-700 mb-1">Peso (kg) *</label>
+            <input type="number" id="peso" name="peso" required step="0.01"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                   placeholder="0.00">
+          </div>
+
+          <!-- Tipo de Veículo -->
+          <div>
+            <label for="tipo_veiculo" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Veículo *</label>
+            <select id="tipo_veiculo" name="tipo_veiculo" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione o tipo de veículo</option>
+              <option value="VUC">VUC</option>
+              <option value="TOCO">TOCO</option>
+              <option value="TRUCK">TRUCK</option>
+              <option value="CARRETA">CARRETA</option>
+              <option value="BITREM">BITREM</option>
+              <option value="RODOTREM">RODOTREM</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Observações -->
+        <div>
+          <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+          <textarea id="observacoes" name="observacoes" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                    placeholder="Observações adicionais sobre o agendamento"></textarea>
+        </div>
+
+        <!-- Campos Ocultos para Ordem (se necessário) -->
+        <input type="hidden" id="ordem" name="ordem" value="">
+
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="fecharModalInclusao()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+          Salvar Agendamento
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de Importação -->
+<div id="modalImportacao" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Importar Agendamentos</h1>
+      </div>
+      <button onclick="fecharModalImportacao()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="formImportacao" method="post" enctype="multipart/form-data" onsubmit="enviarImportacao(event)">
+      {% csrf_token %}
+      <div class="p-6 space-y-4">
+        <!-- Área de Drag & Drop Simples -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Selecione ou arraste o arquivo Excel:
+          </label>
+          
+          <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-md p-6 text-center transition-colors duration-200 hover:border-sky-400 cursor-pointer">
+            <input type="file" id="fileInput" name="arquivo" accept=".xlsx,.xls" class="hidden" required>
+            <div class="flex flex-col items-center justify-center space-y-2">
+              <i class="bi bi-cloud-arrow-up text-3xl text-gray-400"></i>
+              <p class="text-gray-600">Arraste e solte sua planilha aqui</p>
+              <p class="text-gray-400 text-sm">ou</p>
+              <button type="button" onclick="document.getElementById('fileInput').click()" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200">
+                Selecione o arquivo
+              </button>
+              <p class="text-xs text-gray-500">Formatos suportados: .xlsx, .xls</p>
+            </div>
+          </div>
+          
+          <!-- Preview do arquivo selecionado -->
+          <div id="filePreview" class="hidden mt-4">
+            <div class="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <i class="bi bi-file-earmark-spreadsheet text-green-600 text-xl"></i>
+                <div>
+                  <p id="fileName" class="font-medium text-gray-800"></p>
+                  <p id="fileSize" class="text-sm text-gray-500"></p>
+                </div>
+              </div>
+              <button type="button" onclick="removerArquivo()" class="text-gray-400 hover:text-red-500">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Botão para baixar modelo -->
+        <div class="text-center">
+          <a href="{% url 'rondonopolis:baixar_modelo' %}" class="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700 text-sm font-medium transition-colors duration-200">
+            <i class="bi bi-download"></i>
+            Baixar modelo de importação
+          </a>
+        </div>
+        
+        <div class="bg-blue-50 p-4 rounded-lg">
+          <h3 class="font-semibold text-blue-800 mb-2 text-sm">Instruções:</h3>
+          <ul class="list-disc list-inside text-blue-700 space-y-1 text-xs">
+            <li>O arquivo deve estar no formato Excel (.xlsx ou .xls)</li>
+            <li>Deve conter as colunas: ORDEM, MOTORISTA, DATA AGENDAMENTO, TIPO, TRANSPORTADORA, PLACA, VEICULO, PESO</li>
+            <li>Agendamentos com a mesma ORDEM serão atualizados</li>
+            <li>Transportadoras não cadastradas serão criadas automaticamente</li>
+          </ul>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="fecharModalImportacao()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" id="btnImportar" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+          Importar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[9999] backdrop-blur-sm">
+  <div class="bg-white p-8 rounded-xl shadow-xl flex flex-col items-center min-w-[350px] max-w-[400px]">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-600 mb-6"></div>
+    <p id="loadingTitle" class="text-gray-800 font-semibold text-lg mb-2">Importando agendamentos...</p>
+    <p id="loadingMessage" class="text-sm text-gray-600 text-center">Processando arquivo e salvando dados</p>
+    <div class="w-full bg-gray-200 rounded-full h-2 mt-4 overflow-hidden">
+      <div id="loadingProgress" class="bg-sky-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Edição -->
+<div id="modalEdicao" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-2 sm:mx-0 max-h-[90vh] overflow-y-auto">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Editar Agendamento</h1>
+      </div>
+      <button onclick="fecharModalEdicao()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="formEdicao" method="post" action="#">
+      {% csrf_token %}
+      <input type="hidden" id="edicao_agendamento_id" name="agendamento_id">
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Motorista -->
+          <div>
+            <label for="edicao_motorista" class="block text-sm font-medium text-gray-700 mb-1">Motorista *</label>
+            <select id="edicao_motorista" name="motorista" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione um motorista</option>
+              {% for motorista in motoristas %}
+                <option value="{{ motorista.id }}">{{ motorista.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Data Agendada -->
+          <div>
+            <label for="edicao_data_agendada" class="block text-sm font-medium text-gray-700 mb-1">Data Agendada *</label>
+            <input type="date" id="edicao_data_agendada" name="data_agendada" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+          </div>
+
+          <!-- Horário Agendado -->
+          <div id="edicao_horario_container">
+            <div class="flex items-center justify-between mb-1">
+              <label for="edicao_horario_agendado" class="block text-sm font-medium text-gray-700">
+                Horário Agendado <span id="edicao_horario_required" class="text-red-500">*</span>
+              </label>
+              <label for="edicao_encaixe" class="flex items-center gap-2 cursor-pointer">
+                <span class="text-xs text-gray-600">Encaixe</span>
+                <div class="relative">
+                  <input type="checkbox" id="edicao_encaixe" name="encaixe" 
+                         class="sr-only peer"
+                         onchange="toggleHorarioAgendadoEdicao()">
+                  <div class="w-10 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-500 peer-focus:ring-offset-2 rounded-full peer peer-checked:bg-sky-600 transition-colors duration-200 ease-in-out"></div>
+                  <div class="absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></div>
+                </div>
+              </label>
+            </div>
+            <input type="time" id="edicao_horario_agendado" name="horario_agendado" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all">
+          </div>
+
+          <!-- Tipo -->
+          <div>
+            <label for="edicao_tipo" class="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+            <select id="edicao_tipo" name="tipo" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione o tipo</option>
+              <option value="coleta">Coleta</option>
+              <option value="entrega">Entrega</option>
+            </select>
+          </div>
+
+          <!-- Placa do Veículo -->
+          <div>
+            <label for="edicao_placa_veiculo" class="block text-sm font-medium text-gray-700 mb-1">Placa do Veículo *</label>
+            <input type="text" id="edicao_placa_veiculo" name="placa_veiculo" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 uppercase"
+                   placeholder="ABC1D23" maxlength="7">
+          </div>
+
+          <!-- Transportadora -->
+          <div>
+            <label for="edicao_transportadora" class="block text-sm font-medium text-gray-700 mb-1">Transportadora *</label>
+            <select id="edicao_transportadora" name="transportadora" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione uma transportadora</option>
+              {% for transportadora in transportadoras %}
+                <option value="{{ transportadora.id }}">{{ transportadora.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Peso -->
+          <div>
+            <label for="edicao_peso" class="block text-sm font-medium text-gray-700 mb-1">Peso (kg) *</label>
+            <input type="number" id="edicao_peso" name="peso" required step="0.01"
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                   placeholder="0.00">
+          </div>
+
+          <!-- Tipo de Veículo -->
+          <div>
+            <label for="edicao_tipo_veiculo" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Veículo *</label>
+            <select id="edicao_tipo_veiculo" name="tipo_veiculo" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+              <option value="">Selecione o tipo de veículo</option>
+              <option value="VUC">VUC</option>
+              <option value="TOCO">TOCO</option>
+              <option value="TRUCK">TRUCK</option>
+              <option value="CARRETA">CARRETA</option>
+              <option value="BITREM">BITREM</option>
+              <option value="RODOTREM">RODOTREM</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Observações -->
+        <div>
+          <label for="edicao_observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+          <textarea id="edicao_observacoes" name="observacoes" rows="3"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                    placeholder="Observações adicionais sobre o agendamento"></textarea>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="fecharModalEdicao()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+          Salvar Alterações
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de Resultado -->
+<div id="modalResultado" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black" id="tituloResultado">Resultado da Importação</h1>
+      </div>
+      <button onclick="fecharModalResultado()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="p-6">
+      <div id="conteudoResultado"></div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+      <button onclick="fecharModalResultado()" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+        Fechar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div id="modalExclusao" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-red-600"></span>
+        <h1 class="text-xl font-normal text-black">Confirmar Exclusão</h1>
+      </div>
+      <button onclick="fecharModalExclusao()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="p-6">
+      <div class="flex items-start gap-4 mb-4">
+        <div class="flex-shrink-0">
+          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+            <i class="bi bi-exclamation-triangle text-red-600 text-xl"></i>
+          </div>
+        </div>
+        <div class="flex-1">
+          <h3 class="text-lg font-medium text-gray-900 mb-2">Tem certeza que deseja excluir este agendamento?</h3>
+          <p class="text-sm text-gray-600 mb-4">Esta ação não pode ser desfeita. O agendamento será permanentemente removido do sistema.</p>
+          
+          <!-- Informações do agendamento -->
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center gap-2">
+                <i class="bi bi-person text-gray-400"></i>
+                <span class="text-gray-700"><strong>Motorista:</strong> <span id="exclusao-motorista" class="font-medium"></span></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="bi bi-calendar text-gray-400"></i>
+                <span class="text-gray-700"><strong>Data:</strong> <span id="exclusao-data" class="font-medium"></span></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="bi bi-truck text-gray-400"></i>
+                <span class="text-gray-700"><strong>Placa:</strong> <span id="exclusao-placa" class="font-mono font-medium"></span></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="bi bi-tag text-gray-400"></i>
+                <span class="text-gray-700"><strong>Tipo:</strong> <span id="exclusao-tipo" class="font-medium"></span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+      <button type="button" onclick="fecharModalExclusao()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+        Cancelar
+      </button>
+      <button type="button" onclick="confirmarExclusao()" id="btnConfirmarExclusao" class="px-4 py-2 border border-transparent rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center gap-2">
+        <i class="bi bi-trash"></i>
+        Sim, excluir
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Cadastro Rápido de Motorista -->
+<div id="modalMotorista" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Cadastrar Motorista</h1>
+      </div>
+      <button onclick="fecharModalMotorista()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="formMotorista" onsubmit="salvarMotoristaRapido(event)">
+      {% csrf_token %}
+      <div class="p-6 space-y-4">
+        <div>
+          <label for="motorista_nome" class="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+          <input type="text" id="motorista_nome" name="nome" required
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 uppercase"
+                 placeholder="Nome completo do motorista"
+                 oninput="this.value = this.value.toUpperCase()"
+                 style="text-transform: uppercase;">
+        </div>
+        <div>
+          <label for="motorista_telefone" class="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+          <input type="text" id="motorista_telefone" name="telefone"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                 placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="fecharModalMotorista()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+          Salvar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de Cadastro Rápido de Transportadora -->
+<div id="modalTransportadora" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Cadastrar Transportadora</h1>
+      </div>
+      <button onclick="fecharModalTransportadora()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="formTransportadora" onsubmit="salvarTransportadoraRapida(event)">
+      {% csrf_token %}
+      <div class="p-6 space-y-4">
+        <div>
+          <label for="transportadora_nome" class="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+          <input type="text" id="transportadora_nome" name="nome" required
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 uppercase"
+                 placeholder="Nome da transportadora"
+                 oninput="this.value = this.value.toUpperCase()"
+                 style="text-transform: uppercase;">
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <button type="button" onclick="fecharModalTransportadora()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+          Salvar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Variáveis globais
+let arquivoSelecionado = null;
+
+// Funções para controlar os modais de inclusão
+function abrirModalInclusao() {
+    document.getElementById('modalInclusao').classList.remove('hidden');
+    // Definir data mínima como hoje
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('data_agendada').min = hoje;
+}
+
+function fecharModalInclusao() {
+    document.getElementById('modalInclusao').classList.add('hidden');
+    document.getElementById('formInclusao').reset();
+}
+
+// Funções para controlar os modais de importação
+function abrirModalImportacao() {
+    document.getElementById('modalImportacao').classList.remove('hidden');
+}
+
+function fecharModalImportacao() {
+    document.getElementById('modalImportacao').classList.add('hidden');
+    document.getElementById('formImportacao').reset();
+    removerArquivo();
+}
+
+function fecharModalResultado() {
+    document.getElementById('modalResultado').classList.add('hidden');
+    // Recarregar a página para mostrar os novos dados
+    window.location.reload();
+}
+
+// Formatar placa do veículo para maiúsculas
+document.getElementById('placa_veiculo')?.addEventListener('input', function(e) {
+    this.value = this.value.toUpperCase();
+});
+
+document.getElementById('edicao_placa_veiculo')?.addEventListener('input', function(e) {
+    this.value = this.value.toUpperCase();
+});
+
+// Validação e envio do formulário de inclusão
+document.getElementById('formInclusao')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Validações básicas
+    const placa = document.getElementById('placa_veiculo').value;
+    const peso = parseFloat(document.getElementById('peso').value);
+    
+    // Validar formato da placa (formato brasileiro: AAA1A23 ou AAA1234)
+    const placaRegex = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
+    if (!placaRegex.test(placa)) {
+        alert('Por favor, insira uma placa válida no formato brasileiro (ex: ABC1D23 ou ABC1234)');
+        return;
+    }
+    
+    // Validar peso positivo
+    if (peso <= 0 || isNaN(peso)) {
+        alert('Por favor, insira um peso válido maior que zero');
+        return;
+    }
+    
+    // Preparar dados do formulário
+    const formData = new FormData(this);
+    const btnSalvar = this.querySelector('button[type="submit"]');
+    
+    // Mostrar loading
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    btnSalvar.disabled = true;
+    btnSalvar.innerHTML = 'Salvando...';
+    
+    // Fazer requisição AJAX
+    fetch('{% url "rondonopolis:criar_agendamento" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Esconder loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = 'Salvar Agendamento';
+        
+        if (data.success) {
+            // Fechar modal
+            fecharModalInclusao();
+            
+            // Recarregar a página para mostrar o novo agendamento
+            window.location.reload();
+        } else {
+            // Mostrar erro
+            alert('Erro ao criar agendamento: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        // Esconder loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = 'Salvar Agendamento';
+        
+        // Mostrar erro
+        alert('Erro na conexão: ' + error.message);
+    });
+});
+
+// Funções para editar e excluir agendamentos
+function editarAgendamento(id) {
+    // Mostrar loading
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    
+    // Buscar dados do agendamento
+    fetch(`{% url 'rondonopolis:obter_agendamento' %}?id=${id}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Esconder loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        
+        if (data.success) {
+            const ag = data.agendamento;
+            
+            // Preencher formulário de edição
+            document.getElementById('edicao_agendamento_id').value = ag.id;
+            // Preencher motorista usando o ID
+            const motoristaSelect = document.getElementById('edicao_motorista');
+            if (motoristaSelect && ag.motorista_id) {
+                motoristaSelect.value = ag.motorista_id;
+            } else if (motoristaSelect && ag.motorista) {
+                // Fallback: tentar encontrar pelo nome se não tiver ID
+                const options = Array.from(motoristaSelect.options);
+                const option = options.find(opt => opt.textContent.trim() === ag.motorista);
+                if (option) {
+                    motoristaSelect.value = option.value;
+                }
+            }
+            document.getElementById('edicao_data_agendada').value = ag.data_agendada;
+            // Preencher horário e toggle de encaixe
+            const horarioInput = document.getElementById('edicao_horario_agendado');
+            const encaixeCheckbox = document.getElementById('edicao_encaixe');
+            if (horarioInput && ag.horario_agendado) {
+                // Verificar se é encaixe (00:00)
+                if (ag.horario_agendado === '00:00') {
+                    if (encaixeCheckbox) {
+                        encaixeCheckbox.checked = true;
+                        toggleHorarioAgendadoEdicao();
+                    }
+                } else {
+                    horarioInput.value = ag.horario_agendado;
+                    if (encaixeCheckbox) {
+                        encaixeCheckbox.checked = false;
+                        toggleHorarioAgendadoEdicao();
+                    }
+                }
+            }
+            document.getElementById('edicao_tipo').value = ag.tipo;
+            document.getElementById('edicao_placa_veiculo').value = ag.placa_veiculo;
+            document.getElementById('edicao_transportadora').value = ag.transportadora_id;
+            document.getElementById('edicao_peso').value = ag.peso;
+            document.getElementById('edicao_tipo_veiculo').value = ag.tipo_veiculo;
+            document.getElementById('edicao_observacoes').value = ag.observacoes || '';
+            
+            // Abrir modal de edição
+            document.getElementById('modalEdicao').classList.remove('hidden');
+        } else {
+            alert('Erro ao carregar dados do agendamento: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        // Esconder loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        alert('Erro na conexão: ' + error.message);
+    });
+}
+
+function fecharModalEdicao() {
+    document.getElementById('modalEdicao').classList.add('hidden');
+    document.getElementById('formEdicao').reset();
+}
+
+// Variável global para armazenar o ID do agendamento que será excluído
+let agendamentoIdParaExcluir = null;
+
+function excluirAgendamento(id, motorista, data, horario, placa, tipo) {
+    agendamentoIdParaExcluir = id;
+    
+    // Preencher informações no modal com os dados passados como parâmetros
+    document.getElementById('exclusao-motorista').textContent = motorista || '-';
+    
+    // Formatar data e horário
+    let dataFormatada = data || '-';
+    if (horario && horario !== '00:00') {
+        dataFormatada += ` às ${horario}`;
+    } else if (horario === '00:00') {
+        dataFormatada += ' (ENCAIXE)';
+    }
+    document.getElementById('exclusao-data').textContent = dataFormatada;
+    document.getElementById('exclusao-placa').textContent = placa || '-';
+    document.getElementById('exclusao-tipo').textContent = tipo || '-';
+    
+    // Abrir modal de confirmação
+    document.getElementById('modalExclusao').classList.remove('hidden');
+}
+
+function fecharModalExclusao() {
+    document.getElementById('modalExclusao').classList.add('hidden');
+    agendamentoIdParaExcluir = null;
+}
+
+function confirmarExclusao() {
+    if (!agendamentoIdParaExcluir) {
+        alert('Erro: ID do agendamento não encontrado');
+        return;
+    }
+    
+    // Desabilitar botão durante a exclusão
+    const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = '<i class="bi bi-hourglass-split"></i> Excluindo...';
+    
+    // Obter CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+    
+    // Fazer requisição para excluir o agendamento
+    fetch(`/rondonopolis/agendamentos/${agendamentoIdParaExcluir}/excluir/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Erro na resposta do servidor');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Fechar modal
+        fecharModalExclusao();
+        
+        if (data.success) {
+            // Recarregar a página diretamente após exclusão bem-sucedida
+            window.location.reload();
+        } else {
+            alert('Erro ao excluir agendamento: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        fecharModalExclusao();
+        alert('Erro na conexão: ' + error.message);
+    })
+    .finally(() => {
+        // Reabilitar botão em caso de erro
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = '<i class="bi bi-trash"></i> Sim, excluir';
+    });
+}
+
+// Configuração do Drag & Drop
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const filePreview = document.getElementById('filePreview');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const btnImportar = document.getElementById('btnImportar');
+
+// Eventos de Drag & Drop
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+        dropZone.classList.add('border-sky-400', 'bg-sky-50');
+    }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+        dropZone.classList.remove('border-sky-400', 'bg-sky-50');
+    }, false);
+});
+
+dropZone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length) {
+        fileInput.files = files;
+        processarArquivo(files[0]);
+    }
+}
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+        processarArquivo(e.target.files[0]);
+    }
+});
+
+function processarArquivo(file) {
+    // Verificar se é um arquivo Excel
+    if (!file.name.match(/\.(xlsx|xls)$/)) {
+        alert('Por favor, selecione um arquivo Excel (.xlsx ou .xls)');
+        return;
+    }
+    
+    arquivoSelecionado = file;
+    
+    // Atualizar preview
+    fileName.textContent = file.name;
+    fileSize.textContent = formatarTamanhoArquivo(file.size);
+    filePreview.classList.remove('hidden');
+    
+    // Ativar botão de importação
+    btnImportar.disabled = false;
+}
+
+function removerArquivo() {
+    arquivoSelecionado = null;
+    fileInput.value = '';
+    filePreview.classList.add('hidden');
+    btnImportar.disabled = true;
+}
+
+function formatarTamanhoArquivo(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Função para atualizar mensagem de carregamento
+function atualizarLoading(titulo, mensagem, progresso) {
+    const loadingTitle = document.getElementById('loadingTitle');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const loadingProgress = document.getElementById('loadingProgress');
+    
+    if (loadingTitle) loadingTitle.textContent = titulo;
+    if (loadingMessage) loadingMessage.textContent = mensagem;
+    if (loadingProgress) loadingProgress.style.width = progresso + '%';
+}
+
+// Função para enviar o formulário via AJAX
+function enviarImportacao(event) {
+    event.preventDefault();
+    
+    if (!arquivoSelecionado) {
+        alert('Por favor, selecione um arquivo para importar.');
+        return;
+    }
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const btnImportar = document.getElementById('btnImportar');
+    
+    // Mostrar loading com mensagem inicial
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    loadingOverlay.classList.remove('hidden');
+    atualizarLoading('Importando agendamentos...', 'Lendo arquivo Excel e validando dados', 10);
+    
+    btnImportar.disabled = true;
+    btnImportar.innerHTML = 'Importando...';
+    
+    // Fechar modal de importação
+    fecharModalImportacao();
+    
+    // Simular progresso durante o processamento
+    let progresso = 10;
+    const intervaloProgresso = setInterval(() => {
+        progresso += 2;
+        if (progresso < 90) {
+            atualizarLoading('Importando agendamentos...', 'Processando dados e salvando no banco', progresso);
+        }
+    }, 500);
+    
+    // Fazer requisição AJAX
+    fetch('{% url "rondonopolis:importar_agendamentos" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => {
+        clearInterval(intervaloProgresso);
+        atualizarLoading('Finalizando...', 'Processando resposta e preparando resumo', 95);
+        return response.json();
+    })
+    .then(data => {
+        clearInterval(intervaloProgresso);
+        atualizarLoading('Preparando resumo...', 'Gerando relatório da importação', 100);
+        
+        // Preparar o conteúdo do modal ANTES de esconder o loading
+        prepararModalResultado(data);
+        
+        // Aguardar um pouco para garantir que o DOM foi atualizado
+        setTimeout(() => {
+            // Agora sim, esconder o loading e mostrar o modal
+            loadingOverlay.classList.add('hidden');
+            btnImportar.disabled = false;
+            btnImportar.innerHTML = 'Importar';
+            
+            // Mostrar resultado (já está preparado)
+            mostrarResultado(data);
+        }, 300);
+    })
+    .catch(error => {
+        clearInterval(intervaloProgresso);
+        
+        // Preparar modal de erro antes de esconder loading
+        const errorData = {
+            success: false,
+            error: 'Erro na conexão: ' + error.message
+        };
+        prepararModalResultado(errorData);
+        
+        // Aguardar um pouco e então esconder loading e mostrar modal
+        setTimeout(() => {
+            loadingOverlay.classList.add('hidden');
+            btnImportar.disabled = false;
+            btnImportar.innerHTML = 'Importar';
+            
+            // Mostrar erro (já está preparado)
+            mostrarResultado(errorData);
+        }, 300);
+    });
+}
+
+// Função para preparar o conteúdo do modal de resultado (chamada antes de esconder o loading)
+function prepararModalResultado(data) {
+    const tituloResultado = document.getElementById('tituloResultado');
+    const conteudoResultado = document.getElementById('conteudoResultado');
+    
+    if (data.success) {
+        // Verificar se é importação ou criação manual
+        if (data.total_linhas !== undefined) {
+            // É importação
+            tituloResultado.innerHTML = 'Importação Concluída';
+            conteudoResultado.innerHTML = `
+                <div class="space-y-3">
+                    <p class="text-green-600 font-medium">Importação realizada com sucesso!</p>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <p><strong>Total de linhas:</strong> ${data.total_linhas}</p>
+                        <p><strong>Novos agendamentos:</strong> ${data.agendamentos_criados}</p>
+                        <p><strong>Agendamentos atualizados:</strong> ${data.agendamentos_atualizados}</p>
+                        <p><strong>Transportadoras criadas:</strong> ${data.transportadoras_criadas}</p>
+                        <p><strong>Erros:</strong> ${data.erros}</p>
+                    </div>
+                    <p class="text-sm text-gray-600">A página será atualizada automaticamente.</p>
+                </div>
+            `;
+        } else {
+            // É criação manual ou edição
+            const isEdicao = data.message && data.message.includes('atualizado');
+            tituloResultado.innerHTML = isEdicao ? 'Agendamento Atualizado' : 'Agendamento Criado';
+            conteudoResultado.innerHTML = `
+                <div class="space-y-3">
+                    <p class="text-green-600 font-medium">${data.message || (isEdicao ? 'Agendamento atualizado com sucesso!' : 'Agendamento criado com sucesso!')}</p>
+                    ${data.ordem ? `<div class="bg-green-50 p-4 rounded-lg">
+                        <p><strong>Ordem:</strong> ${data.ordem}</p>
+                    </div>` : ''}
+                    <p class="text-sm text-gray-600">A página será atualizada automaticamente.</p>
+                </div>
+            `;
+        }
+    } else {
+        tituloResultado.innerHTML = 'Erro';
+        conteudoResultado.innerHTML = `
+            <div class="space-y-3">
+                <p class="text-red-600 font-medium">Ocorreu um erro:</p>
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <p class="text-red-700">${data.error}</p>
+                </div>
+                <p class="text-sm text-gray-600">Verifique os dados e tente novamente.</p>
+            </div>
+        `;
+    }
+}
+
+// Função para mostrar o resultado da importação ou criação (já preparado)
+function mostrarResultado(data) {
+    const modalResultado = document.getElementById('modalResultado');
+    modalResultado.classList.remove('hidden');
+}
+
+// Validação e envio do formulário de edição
+document.getElementById('formEdicao')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Validações básicas
+    const placa = document.getElementById('edicao_placa_veiculo').value;
+    const peso = parseFloat(document.getElementById('edicao_peso').value);
+    
+    // Validar formato da placa (formato brasileiro: AAA1A23 ou AAA1234)
+    const placaRegex = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
+    if (!placaRegex.test(placa)) {
+        alert('Por favor, insira uma placa válida no formato brasileiro (ex: ABC1D23 ou ABC1234)');
+        return;
+    }
+    
+    // Validar peso positivo
+    if (peso <= 0 || isNaN(peso)) {
+        alert('Por favor, insira um peso válido maior que zero');
+        return;
+    }
+    
+    // Preparar dados do formulário
+    const formData = new FormData(this);
+    const btnSalvar = this.querySelector('button[type="submit"]');
+    
+    // Mostrar loading
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    btnSalvar.disabled = true;
+    btnSalvar.innerHTML = 'Salvando...';
+    
+    // Fazer requisição AJAX
+    fetch('{% url "rondonopolis:editar_agendamento" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Esconder loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = 'Salvar Alterações';
+        
+        if (data.success) {
+            // Fechar modal
+            fecharModalEdicao();
+            
+            // Recarregar a página para mostrar as alterações
+            window.location.reload();
+        } else {
+            // Mostrar erro
+            alert('Erro ao atualizar agendamento: ' + (data.error || 'Erro desconhecido'));
+        }
+    })
+    .catch(error => {
+        // Esconder loading
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = 'Salvar Alterações';
+        
+        // Mostrar erro
+        alert('Erro na conexão: ' + error.message);
+    });
+});
+
+// Fechar modais ao clicar fora
+document.addEventListener('click', function(event) {
+    const modalImportacao = document.getElementById('modalImportacao');
+    const modalResultado = document.getElementById('modalResultado');
+    const modalInclusao = document.getElementById('modalInclusao');
+    const modalEdicao = document.getElementById('modalEdicao');
+    const modalExclusao = document.getElementById('modalExclusao');
+    
+    if (event.target === modalImportacao) {
+        fecharModalImportacao();
+    }
+    if (event.target === modalResultado) {
+        fecharModalResultado();
+    }
+    if (event.target === modalInclusao) {
+        fecharModalInclusao();
+    }
+    if (event.target === modalExclusao) {
+        fecharModalExclusao();
+    }
+    if (event.target === modalEdicao) {
+        fecharModalEdicao();
+    }
+});
+
+// Funções para modais de cadastro rápido
+function abrirModalMotorista() {
+    document.getElementById('modalMotorista').classList.remove('hidden');
+}
+
+function fecharModalMotorista() {
+    document.getElementById('modalMotorista').classList.add('hidden');
+    document.getElementById('formMotorista').reset();
+}
+
+function abrirModalTransportadora() {
+    document.getElementById('modalTransportadora').classList.remove('hidden');
+}
+
+function fecharModalTransportadora() {
+    document.getElementById('modalTransportadora').classList.add('hidden');
+    document.getElementById('formTransportadora').reset();
+}
+
+async function salvarMotoristaRapido(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const nome = formData.get('nome');
+    const telefone = formData.get('telefone');
+    
+    try {
+        const response = await fetch('/rondonopolis/motoristas/cadastrar-rapido/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                nome: nome,
+                telefone: telefone || ''
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Adicionar nova opção ao select
+            const select = document.getElementById('motorista');
+            const option = document.createElement('option');
+            option.value = data.motorista_id;
+            option.textContent = nome;
+            option.selected = true;
+            select.appendChild(option);
+            
+            fecharModalMotorista();
+            alert('Motorista cadastrado com sucesso!');
+        } else {
+            // Se já existe, selecionar o existente no select
+            if (data.motorista_id) {
+                const select = document.getElementById('motorista');
+                select.value = data.motorista_id;
+                fecharModalMotorista();
+                alert(data.error || 'Motorista já cadastrado. Selecionado automaticamente.');
+            } else {
+                alert('Erro ao cadastrar motorista: ' + (data.error || 'Erro desconhecido'));
+            }
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao cadastrar motorista');
+    }
+}
+
+async function salvarTransportadoraRapida(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const nome = formData.get('nome');
+    
+    try {
+        const response = await fetch('/rondonopolis/transportadoras/cadastrar-rapido/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                nome: nome
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Adicionar nova opção ao select
+            const select = document.getElementById('transportadora');
+            const option = document.createElement('option');
+            option.value = data.transportadora_id;
+            option.textContent = nome;
+            option.selected = true;
+            select.appendChild(option);
+            
+            fecharModalTransportadora();
+            alert('Transportadora cadastrada com sucesso!');
+        } else {
+            // Se já existe, selecionar a existente no select
+            if (data.transportadora_id) {
+                const select = document.getElementById('transportadora');
+                select.value = data.transportadora_id;
+                fecharModalTransportadora();
+                alert(data.error || 'Transportadora já cadastrada. Selecionada automaticamente.');
+            } else {
+                alert('Erro ao cadastrar transportadora: ' + (data.error || 'Erro desconhecido'));
+            }
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao cadastrar transportadora');
+    }
+}
+
+// Função para controlar o campo de horário quando é encaixe
+function toggleHorarioAgendado() {
+    const encaixeCheckbox = document.getElementById('encaixe');
+    const horarioInput = document.getElementById('horario_agendado');
+    const horarioRequired = document.getElementById('horario_required');
+    const horarioContainer = document.getElementById('horario_container');
+    
+        if (encaixeCheckbox && horarioInput && horarioContainer) {
+        if (encaixeCheckbox.checked) {
+            horarioInput.removeAttribute('required');
+            horarioInput.value = '';
+            horarioInput.disabled = true;
+            horarioInput.classList.add('bg-gray-50', 'cursor-not-allowed', 'opacity-60');
+            if (horarioRequired) {
+                horarioRequired.style.display = 'none';
+            }
+            const horarioLabel = horarioContainer.querySelector('label');
+            if (horarioLabel) {
+                horarioLabel.classList.add('opacity-60');
+            }
+        } else {
+            horarioInput.setAttribute('required', 'required');
+            horarioInput.disabled = false;
+            horarioInput.classList.remove('bg-gray-50', 'cursor-not-allowed', 'opacity-60');
+            if (horarioRequired) {
+                horarioRequired.style.display = 'inline';
+            }
+            const horarioLabel = horarioContainer.querySelector('label');
+            if (horarioLabel) {
+                horarioLabel.classList.remove('opacity-60');
+            }
+        }
+    }
+}
+
+// Função para controlar o campo de horário quando é encaixe (formulário de edição)
+function toggleHorarioAgendadoEdicao() {
+    const encaixeCheckbox = document.getElementById('edicao_encaixe');
+    const horarioInput = document.getElementById('edicao_horario_agendado');
+    const horarioRequired = document.getElementById('edicao_horario_required');
+    const horarioContainer = document.getElementById('edicao_horario_container');
+    
+    if (encaixeCheckbox && horarioInput && horarioContainer) {
+        if (encaixeCheckbox.checked) {
+            horarioInput.removeAttribute('required');
+            horarioInput.value = '';
+            horarioInput.disabled = true;
+            horarioInput.classList.add('bg-gray-50', 'cursor-not-allowed', 'opacity-60');
+            if (horarioRequired) {
+                horarioRequired.style.display = 'none';
+            }
+            const horarioLabel = horarioContainer.querySelector('label');
+            if (horarioLabel) {
+                horarioLabel.classList.add('opacity-60');
+            }
+        } else {
+            horarioInput.setAttribute('required', 'required');
+            horarioInput.disabled = false;
+            horarioInput.classList.remove('bg-gray-50', 'cursor-not-allowed', 'opacity-60');
+            if (horarioRequired) {
+                horarioRequired.style.display = 'inline';
+            }
+            const horarioLabel = horarioContainer.querySelector('label');
+            if (horarioLabel) {
+                horarioLabel.classList.remove('opacity-60');
+            }
+        }
+    }
+}
+
+// Função para exportar agendamentos
+function exportarAgendamentos() {
+    // Obter parâmetros de filtro atuais da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Construir URL de exportação com os mesmos filtros
+    const exportUrl = '{% url "rondonopolis:exportar_agendamentos" %}';
+    const params = new URLSearchParams();
+    
+    // Adicionar parâmetros de filtro se existirem
+    if (urlParams.get('data')) {
+        params.append('data', urlParams.get('data'));
+    }
+    if (urlParams.get('tipo')) {
+        params.append('tipo', urlParams.get('tipo'));
+    }
+    if (urlParams.get('transportadora')) {
+        params.append('transportadora', urlParams.get('transportadora'));
+    }
+    if (urlParams.get('busca')) {
+        params.append('busca', urlParams.get('busca'));
+    }
+    if (urlParams.get('status')) {
+        params.append('status', urlParams.get('status'));
+    }
+    
+    // Redirecionar para a URL de exportação
+    const finalUrl = exportUrl + (params.toString() ? '?' + params.toString() : '');
+    window.location.href = finalUrl;
+}
+
+// Controle dos filtros
+document.addEventListener('DOMContentLoaded', function() {
+    const btnLimpar = document.getElementById('btn-limpar-filtros');
+    const toggleFilters = document.getElementById('toggle-filters');
+    const filtersContent = document.getElementById('filters-content');
+    const formFiltros = document.getElementById('form-filtros');
+    
+    // Toggle dos filtros no mobile
+    if (toggleFilters && filtersContent) {
+        toggleFilters.addEventListener('click', function() {
+            filtersContent.classList.toggle('hidden');
+        });
+    }
+    
+    // Limpar filtros (mantém apenas a data atual)
+    if (btnLimpar) {
+        btnLimpar.addEventListener('click', function() {
+            window.location.href = '/rondonopolis/agendamentos/';
+        });
+    }
+    
+    // Debounce para o campo de busca
+    let buscaTimeout;
+    const filtroBusca = document.getElementById('filtro-busca');
+    if (filtroBusca) {
+        filtroBusca.addEventListener('input', function() {
+            clearTimeout(buscaTimeout);
+            buscaTimeout = setTimeout(function() {
+                if (formFiltros) {
+                    formFiltros.submit();
+                }
+            }, 500); // Aguarda 500ms após parar de digitar
+        });
+    }
+    
+    // Aplicar filtros automaticamente ao mudar (selects e data)
+    const filtros = ['filtro-tipo', 'filtro-data', 'filtro-transportadora'];
+    filtros.forEach(filtroId => {
+        const elemento = document.getElementById(filtroId);
+        if (elemento) {
+            elemento.addEventListener('change', function() {
+                if (formFiltros) {
+                    formFiltros.submit();
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Otimizações para telas intermediárias (1024px - 1920px) */
+@media (min-width: 1024px) and (max-width: 1919px) {
+  /* Reduzir um pouco os tamanhos de fonte em tabelas */
+  table {
+    font-size: 0.8125rem !important; /* 13px ao invés de 14px padrão */
+  }
+  
+  /* Reduzir padding das células da tabela */
+  table td, table th {
+    padding: 0.5rem 0.625rem !important; /* py-2 px-2.5 */
+  }
+  
+  /* Reduzir espaçamento entre colunas de filtros */
+  .flex.flex-wrap.gap-3, .flex.flex-wrap.gap-4 {
+    gap: 0.625rem !important;
+  }
+  
+  /* Ajustar tamanho dos inputs e selects */
+  input[type="text"], 
+  input[type="date"], 
+  select {
+    padding: 0.375rem 0.625rem !important;
+    font-size: 0.8125rem !important;
+  }
+  
+  /* Reduzir tamanho dos botões */
+  button.bg-sky-600, button.border-gray-300 {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+  }
+  
+  /* Reduzir espaçamento dos cards mobile */
+  .space-y-3 > div {
+    margin-bottom: 0.625rem !important;
+  }
+  
+  /* Ajustar tamanhos de fonte em cards */
+  .text-base {
+    font-size: 0.875rem !important;
+  }
+  
+  .text-sm {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Reduzir padding dos cards */
+  .bg-white.rounded-lg.shadow-sm.border {
+    padding: 0.625rem !important;
+  }
+  
+  /* Reduzir margens entre seções */
+  .mb-4, .mb-6 {
+    margin-bottom: 0.875rem !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

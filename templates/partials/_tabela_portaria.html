@@ -1,0 +1,349 @@
+{% load tz %}
+
+<!-- ATUALIZAÇÃO DAS ABAS (BADGES) -->
+<!-- O Javascript pega o innerHTML desses elementos e substitui nos botões correspondentes -->
+<div id="tab-agendados">
+  <i class="bi bi-clock-history text-sm sm:text-sm md:text-base"></i>
+  <span>Agendados</span>
+  <span class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+    data-badge="agendados">{{ total_agendamentos }}</span>
+</div>
+
+<div id="tab-liberados">
+  <i class="bi bi-check-circle text-sm sm:text-sm md:text-base"></i>
+  <span>Liberados</span>
+  <span
+    class="bg-gray-100 text-gray-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+    data-badge="liberados">{{ total_liberados }}</span>
+</div>
+
+<!-- CONTEÚDO AGENDADOS -->
+<div id="conteudo-agendados" class="tab-content">
+  <!-- Desktop: Tabela -->
+  <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+    <table class="min-w-full text-[14px]">
+      <thead>
+        <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-2 px-3 text-left font-medium w-8"></th>
+          <th class="py-2 px-3 text-left font-medium">Motorista</th>
+          <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
+          <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
+          <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+          <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-agendamentos">
+        {% for agendamento in agendamentos %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50 agendamento-row" id="agendamento-{{ agendamento.id }}"
+          data-motorista="{{ agendamento.motorista.nome|lower }}" data-placa="{{ agendamento.placa_veiculo|lower }}"
+          data-transportadora="{{ agendamento.transportadora.nome|lower }}">
+          <td class="py-2 px-3">
+            <input type="checkbox" name="agendamento_selecionado" value="{{ agendamento.id }}"
+              class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+          </td>
+          <td class="py-2 px-3 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+              {{ agendamento.motorista.nome }}
+              {% if agendamento.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-2 px-3">
+            <div class="flex flex-col">
+              {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+              <span
+                class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 inline-block w-fit">ENCAIXE</span>
+              {% else %}
+              <span class="text-gray-800">{{ agendamento.horario_agendado|time:"H:i" }}</span>
+              {% endif %}
+              {% if agendamento.horario_chegada %}
+              <span class="text-xs text-emerald-600">Chegou: {{ agendamento.horario_chegada|time:"H:i" }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-2 px-3 font-mono text-gray-800">{{ agendamento.placa_veiculo }}</td>
+          <td class="py-2 px-3">{{ agendamento.transportadora.nome }}</td>
+          <td class="py-2 px-3">{{ agendamento.get_tipo_veiculo_display }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="py-4 text-center text-gray-400 text-[14px]">Nenhum agendamento para hoje</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile: Cards -->
+  <div class="md:hidden space-y-2.5">
+    {% for agendamento in agendamentos %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row"
+      id="agendamento-card-{{ agendamento.id }}" data-motorista="{{ agendamento.motorista.nome|lower }}"
+      data-placa="{{ agendamento.placa_veiculo|lower }}"
+      data-transportadora="{{ agendamento.transportadora.nome|lower }}">
+      <div class="mb-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+          <h3 class="font-semibold text-gray-900 text-sm">{{ agendamento.motorista.nome }}</h3>
+          {% if agendamento.tipo == 'coleta' %}
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+          {% else %}
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+          {% endif %}
+        </div>
+        <div class="space-y-1 text-xs text-gray-600">
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-clock text-gray-400 text-xs"></i>
+            {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+            <span>{{ agendamento.horario_agendado|time:"H:i" }}</span>
+            {% endif %}
+            {% if agendamento.horario_chegada %}
+            <span class="text-emerald-600">• Chegou: {{ agendamento.horario_chegada|time:"H:i" }}</span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-truck text-gray-400 text-xs"></i>
+            <span class="font-mono">{{ agendamento.placa_veiculo }}</span>
+            <span class="text-gray-500">•</span>
+            <span>{{ agendamento.get_tipo_veiculo_display }}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-building text-gray-400 text-xs"></i>
+            <span class="truncate">{{ agendamento.transportadora.nome }}</span>
+          </div>
+          <div class="mt-5 p-2 bg-gray-50 border border-gray-200 rounded-md">
+            <div class="flex items-start gap-1.5">
+              <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
+              <div class="flex-1">
+                <span class="text-xs font-medium text-gray-500 block mb-1">Documentos:</span>
+                <span class="text-xs text-gray-700 break-words">
+                  {% if agendamento.coluna_ad %}
+                  {{ agendamento.coluna_ad }}
+                  {% else %}
+                  <span class="text-gray-400 italic">Nenhum documento informado</span>
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+        <button onclick="carregarDetalhesAgendamento('{{ agendamento.id }}', 'detalhes')"
+          class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+          <i class="bi bi-eye"></i>
+          Ver Detalhes
+        </button>
+        {% if agendamento.motorista.telefone %}
+        <button onclick="chamarMotoristaIndividual('{{ agendamento.id }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-megaphone"></i>
+          Chamar Motorista
+        </button>
+        {% endif %}
+        <button onclick="carregarDetalhesAgendamento('{{ agendamento.id }}', 'confirmacao')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-check-lg"></i>
+          Confirmar Chegada
+        </button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+      <p class="text-gray-400 text-sm">Nenhum agendamento para hoje</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- CONTEÚDO LIBERADOS -->
+<div id="conteudo-liberados" class="tab-content hidden">
+  <!-- Desktop: Tabela -->
+  <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+    <table class="min-w-full text-[14px]">
+      <thead>
+        <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-2 px-3 text-left font-medium w-8"></th>
+          <th class="py-2 px-3 text-left font-medium">Motorista</th>
+          <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
+          <th class="py-2 px-3 text-left font-medium">Chegada</th>
+          <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
+          <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
+          <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+          <th class="py-2 px-3 text-left font-medium">Entrada Armazém</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-liberados">
+        {% for liberado in liberados %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50 liberado-row" id="liberado-{{ liberado.id }}"
+          data-motorista="{{ liberado.motorista.nome|lower }}" data-placa="{{ liberado.placa_veiculo|lower }}"
+          data-transportadora="{{ liberado.transportadora.nome|lower }}"
+          data-armazem="{% if liberado.portaria_chegada_armazem %}1{% else %}0{% endif %}">
+          <td class="py-2 px-3">
+            <input type="checkbox" name="agendamento_selecionado" value="{{ liberado.id }}"
+              class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+          </td>
+          <td class="py-2 px-3 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+              {{ liberado.motorista.nome }}
+              {% if liberado.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-2 px-3 text-gray-800">
+            {% if liberado.horario_agendado|time:"H:i" == "00:00" %}
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+            {{ liberado.horario_agendado|time:"H:i" }}
+            {% endif %}
+          </td>
+          <td class="py-2 px-3 text-emerald-600">
+            {% if liberado.portaria_liberacao %}
+            {% timezone "America/Cuiaba" %}
+            {{ liberado.portaria_liberacao|date:"d/m/Y H:i" }}
+            {% endtimezone %}
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td class="py-2 px-3 font-mono text-gray-800">{{ liberado.placa_veiculo }}</td>
+          <td class="py-2 px-3">{{ liberado.get_tipo_veiculo_display }}</td>
+          <td class="py-2 px-3">{{ liberado.transportadora.nome }}</td>
+          <td class="py-2 px-3">
+            {% if liberado.portaria_chegada_armazem %}
+            <div class="flex items-center gap-1.5 text-emerald-600">
+              <i class="bi bi-building-check text-sm"></i>
+              <span class="text-xs">
+                {% timezone "America/Cuiaba" %}
+                {{ liberado.portaria_chegada_armazem|date:"d/m H:i" }}
+                {% endtimezone %}
+              </span>
+            </div>
+            {% else %}
+            <span class="text-gray-400 text-xs">-</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile: Cards -->
+  <div class="md:hidden space-y-2">
+    {% for liberado in liberados %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 liberado-row"
+      id="liberado-card-{{ liberado.id }}" data-motorista="{{ liberado.motorista.nome|lower }}"
+      data-placa="{{ liberado.placa_veiculo|lower }}" data-transportadora="{{ liberado.transportadora.nome|lower }}">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+        <h3 class="font-semibold text-gray-900 text-sm">{{ liberado.motorista.nome }}</h3>
+        {% if liberado.tipo == 'coleta' %}
+        <span
+          class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+        {% else %}
+        <span
+          class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+        {% endif %}
+      </div>
+      <div class="space-y-1.5 text-xs text-gray-600">
+        <div class="flex items-center gap-2">
+          <i class="bi bi-clock text-gray-400"></i>
+          <span>Agendado:
+            {% if liberado.horario_agendado|time:"H:i" == "00:00" %}
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+            {{ liberado.horario_agendado|time:"H:i" }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="bi bi-check-circle text-emerald-600"></i>
+          <span class="text-emerald-600">
+            {% if liberado.portaria_liberacao %}
+            {% timezone "America/Cuiaba" %}
+            Liberado: {{ liberado.portaria_liberacao|date:"d/m/Y H:i" }}
+            {% endtimezone %}
+            {% else %}
+            -
+            {% endif %}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="bi bi-truck text-gray-400"></i>
+          <span class="font-mono">{{ liberado.placa_veiculo }}</span>
+          <span class="text-gray-500">•</span>
+          <span>{{ liberado.get_tipo_veiculo_display }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="bi bi-building text-gray-400"></i>
+          <span>{{ liberado.transportadora.nome }}</span>
+        </div>
+        <div class="mt-5 p-2 bg-gray-50 border border-gray-200 rounded-md">
+          <div class="flex items-start gap-1.5">
+            <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
+            <div class="flex-1">
+              <span class="text-xs font-medium text-gray-500 block mb-1">Documentos:</span>
+              <span class="text-xs text-gray-700 break-words">
+                {% if liberado.coluna_ad %}
+                {{ liberado.coluna_ad }}
+                {% else %}
+                <span class="text-gray-400 italic">Nenhum documento informado</span>
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+        <button onclick="carregarDetalhesAgendamento('{{ liberado.id }}', 'detalhes')"
+          class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+          <i class="bi bi-eye"></i>
+          Ver Detalhes
+        </button>
+        {% if liberado.motorista.telefone %}
+        <button onclick="chamarMotoristaIndividual('{{ liberado.id }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-megaphone"></i>
+          Chamar Motorista
+        </button>
+        {% endif %}
+        {% if not liberado.portaria_chegada_armazem %}
+        <button onclick="abrirModalConfirmarArmazem('{{ liberado.id }}', '{{ liberado.placa_veiculo|escapejs }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-building-check"></i>
+          Confirmar Armazém
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+      <p class="text-gray-400 text-sm">Nenhum veículo liberado hoje</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
