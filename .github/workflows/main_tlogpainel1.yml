@@ -65,3 +65,4 @@ jobs:
           app-name: 'tlogpainel1'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3D1A3C13AE18426CB809E259C9DD4A3D }}
+          package: .
