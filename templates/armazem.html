@@ -1,0 +1,862 @@
+{% extends 'baserdn.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Armazém - Operação Rondonópolis{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-sky-600"></span>
+    <h1 class="text-xl md:text-2xl font-semibold text-gray-900">Armazém Rondonópolis</h1>
+  </div>
+</div>
+
+<!-- Abas -->
+<div class="mb-4 border-b border-gray-200">
+  <nav class="-mb-px flex justify-between sm:justify-start sm:space-x-4 md:space-x-8">
+    <button id="tab-pendentes"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-sky-500 text-sky-600">
+      <i class="bi bi-clock-history text-sm sm:text-sm md:text-base"></i>
+      <span class="hidden sm:inline">Operações Pendentes</span>
+      <span class="sm:hidden">Pendentes</span>
+      <span
+        class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+        id="badge-pendentes" data-badge="pendentes">{{ total_pendentes }}</span>
+    </button>
+    <button id="tab-confirmados"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+      <i class="bi bi-check-circle text-sm sm:text-sm md:text-base"></i>
+      <span class="hidden sm:inline">Operações Concluídas</span>
+      <span class="sm:hidden">Concluídos</span>
+      <span
+        class="bg-gray-100 text-gray-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+        id="badge-confirmados" data-badge="concluidos">{{ total_concluidos }}</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Barra de Pesquisa -->
+<div id="barra-pesquisa-armazem" class="mb-3 md:mb-4">
+  <div class="relative">
+    <input type="text" id="pesquisa-armazem" placeholder="Pesquisar por motorista, placa, transportadora..."
+      class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm">
+    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+  </div>
+</div>
+
+<!-- Botão de Ações (apenas desktop) -->
+<div id="container-acoes" class="hidden mb-3 p-3 bg-sky-50 rounded-lg border border-sky-200">
+  <div class="flex items-center justify-between">
+    <div>
+      <span class="text-sm font-medium text-sky-700" id="texto-selecionados">0 veículo(s) selecionado(s)</span>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="confirmarChegadaSelecionados()"
+        class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-4 py-2 rounded-md transition-colors duration-200">
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Aba: Aguardando Confirmação -->
+{% include 'partials/_tabela_armazem.html' %}
+
+<!-- Modal de Confirmação -->
+<div id="modal-formulario"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
+    <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+      <h3 id="titulo-modal" class="text-lg md:text-xl font-semibold text-gray-900">Confirmação Armazém</h3>
+      <button onclick="fecharModal()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-xl md:text-2xl"></i>
+      </button>
+    </div>
+
+    <div class="p-4 md:p-6">
+      <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para confirmar</p>
+
+      <div class="swipe-container mb-6 md:mb-8">
+        <div class="swipe-track bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
+          <div
+            class="swipe-thumb absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10">
+            <i class="bi bi-arrow-right text-sky-600 text-base md:text-lg"></i>
+          </div>
+          <div class="swipe-text absolute inset-0 flex items-center justify-center">
+            <span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>
+          </div>
+          <div
+            class="swipe-progress absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left">
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 p-3 md:p-4 rounded-lg mb-3 md:mb-4">
+        <label class="block text-xs md:text-sm font-medium text-gray-500 mb-2">Horário da Operação
+          (Rondonópolis)</label>
+        <div class="w-full px-2 md:px-3 py-3 md:py-4 border-2 border-sky-500 rounded-md bg-white text-center">
+          <div id="confirmacao-horario" class="text-gray-900 text-2xl md:text-3xl font-bold font-mono tracking-wider">
+            {{ agora|date:'H:i:s' }}
+          </div>
+          <div class="text-xs text-gray-500 mt-1">Atualiza automaticamente</div>
+        </div>
+        <input type="hidden" id="confirmacao-horario-hidden" value="{{ agora|date:'H:i' }}">
+      </div>
+
+      <!-- Detalhes do agendamento (só aparece quando houver apenas 1 selecionado) -->
+      <div id="detalhes-agendamento"
+        class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Motorista</p>
+          <p id="confirmacao-motorista" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Placa do Veículo</p>
+          <p id="confirmacao-placa" class="font-mono text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Transportadora</p>
+          <p id="confirmacao-transportadora" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Tipo de Serviço</p>
+          <p id="confirmacao-tipo" class="text-gray-900 font-medium"></p>
+        </div>
+      </div>
+
+      <!-- Mensagem quando houver múltiplos selecionados -->
+      <div id="mensagem-multiplos" class="hidden bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-100 text-center">
+        <p class="text-sm font-medium text-blue-800">
+          <i class="bi bi-info-circle mr-2"></i>
+          Você está confirmando <span id="quantidade-selecionados"></span> veículo(s) no armazém.
+        </p>
+      </div>
+
+      <!-- Campo de Observação (Opcional - Apenas na saída) -->
+      <div id="campo-observacao-container" class="hidden mt-4">
+        <label for="observacao-armazem" class="block text-xs md:text-sm font-medium text-gray-700 mb-1">Observação
+          (Opcional)</label>
+        <textarea id="observacao-armazem" rows="3"
+          class="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-md focus:ring-sky-500 focus:border-sky-500 text-sm md:text-base"
+          placeholder="Digite uma observação..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay (igual) -->
+<div id="loadingOverlay"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[10000] backdrop-blur-sm">
+  <div class="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center min-w-[300px]">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-600 mb-4"></div>
+    <p class="text-gray-700 font-medium">Processando...</p>
+  </div>
+</div>
+
+<style>
+  /* Exatamente o mesmo estilo da Portaria */
+  .swipe-container {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+  }
+
+  .swipe-track {
+    position: relative;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+  }
+
+  .swipe-track.success {
+    background: #f0f9ff;
+    border-color: #0ea5e9;
+  }
+
+  .swipe-thumb {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 10;
+  }
+
+  .swipe-thumb.dragging {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  }
+
+  .swipe-thumb.success {
+    background: #10b981;
+  }
+
+  .swipe-thumb.success i {
+    color: white;
+  }
+
+  .swipe-text {
+    transition: all 0.3s ease;
+    z-index: 5;
+  }
+
+  .swipe-progress {
+    transition: transform 0.3s ease;
+    z-index: 1;
+  }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+  }
+
+  .toast.show {
+    transform: translateX(0);
+  }
+
+  .toast.success {
+    background-color: #10b981;
+  }
+
+  .toast.error {
+    background-color: #ef4444;
+  }
+
+  /* Estilos mobile - Ajustes sutis de espaçamento e zoom */
+  @media (max-width: 768px) {
+
+    /* Reduzir um pouco o padding do conteúdo principal */
+    main {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+      padding-top: 0.75rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento entre cards */
+    .tab-content>div.space-y-2,
+    .tab-content>div.space-y-3,
+    .tab-content>div.space-y-4 {
+      gap: 0.625rem !important;
+    }
+
+    /* Reduzir um pouco o padding dos cards mobile */
+    .tab-content .bg-white.rounded-lg.shadow-sm {
+      padding: 0.875rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento do cabeçalho */
+    .flex.flex-col.md\\:flex-row.items-start.justify-between {
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento das abas */
+    .mb-4.border-b.border-gray-200,
+    .mb-2.md\\:mb-4.border-b {
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento da barra de pesquisa */
+    #barra-pesquisa-armazem {
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Aumentar levemente o tamanho da fonte (zoom sutil) */
+    .tab-content .text-xs {
+      font-size: 0.8125rem !important;
+      /* 13px ao invés de 12px */
+    }
+
+    .tab-content .text-sm {
+      font-size: 0.9375rem !important;
+      /* 15px ao invés de 14px */
+    }
+
+    .tab-content h3 {
+      font-size: 1.0625rem !important;
+      /* 17px */
+    }
+
+    /* Aumentar levemente o tamanho dos ícones */
+    .tab-content .bi {
+      font-size: 1.0625rem !important;
+    }
+
+    /* Aumentar fonte das abas no mobile */
+    .tab-button {
+      font-size: 0.9375rem !important;
+      /* 15px */
+    }
+
+    .tab-button span:not(.bg-sky-100):not(.bg-gray-100) {
+      font-size: 0.9375rem !important;
+      /* 15px para o texto das abas */
+    }
+
+    .tab-button .bi {
+      font-size: 1rem !important;
+      /* 16px para ícones das abas */
+    }
+
+    .toast {
+      top: 10px;
+      right: 10px;
+      left: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    /* Garantir que os modais não ultrapassem a tela */
+    #modal-formulario>div {
+      margin: 0.5rem !important;
+      max-height: calc(100vh - 1rem);
+    }
+
+    /* Botões nos cards mobile */
+    .tab-content button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
+</style>
+
+<script>
+  // JS 99% IGUAL ao da Portaria — só mudou o endpoint e o título
+  let agendamentosSelecionados = new Set();
+  let isDragging = false, startX = 0, currentX = 0, trackWidth = 0, thumbWidth = 0;
+
+  function mostrarToast(m, t = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${t} show`;
+    toast.innerHTML = `<div class="flex items-center gap-2"><i class="bi ${t === 'success' ? 'bi-check-circle' : 'bi-x-circle'}"></i><span>${m}</span></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+  }
+
+  function alternarAba(aba) {
+    // Remover classes ativas de todas as abas
+    document.querySelectorAll('.tab-button').forEach(b => {
+      b.classList.remove('border-sky-500', 'text-sky-600');
+      b.classList.add('border-transparent', 'text-gray-500');
+      b.classList.remove('hover:border-sky-300');
+    });
+
+    // Adicionar classes ativas na aba selecionada
+    const abaAtiva = document.getElementById(`tab-${aba}`);
+    if (abaAtiva) {
+      abaAtiva.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300');
+      abaAtiva.classList.add('border-sky-500', 'text-sky-600');
+    }
+
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(`conteudo-${aba}`).classList.remove('hidden');
+    limparSelecoes();
+
+    // Garantir sincronização ao trocar de aba
+    setTimeout(() => {
+      // Remover IDs do Set que não existem mais nos checkboxes
+      const checkboxesExistentes = Array.from(document.querySelectorAll('.ag-checkbox:not(:disabled)')).map(cb => cb.value);
+      agendamentosSelecionados.forEach(id => {
+        if (!checkboxesExistentes.includes(id)) {
+          agendamentosSelecionados.delete(id);
+        }
+      });
+      atualizarContainerAcoes();
+    }, 100);
+
+    // Aplicar filtro novamente se houver pesquisa
+    const pesquisaInput = document.getElementById('pesquisa-armazem');
+    if (pesquisaInput && pesquisaInput.value) {
+      filtrarArmazem(pesquisaInput.value);
+    }
+  }
+
+  function atualizarContainerAcoes() {
+    const c = document.getElementById('container-acoes');
+    const t = document.getElementById('texto-selecionados');
+    // Só mostrar em desktop (md ou maior) quando houver seleção
+    const isDesktop = window.innerWidth >= 768;
+    if (agendamentosSelecionados.size > 0 && isDesktop) {
+      c.classList.remove('hidden');
+      t.textContent = `${agendamentosSelecionados.size} veículo(s) selecionado(s)`;
+    } else {
+      c.classList.add('hidden');
+    }
+  }
+
+  // Função para lidar com mudanças nos checkboxes do armazém
+  function handleCheckboxChangeArmazem(event) {
+    if (event.target.classList.contains('ag-checkbox') && !event.target.disabled) {
+      event.target.checked ? agendamentosSelecionados.add(event.target.value) : agendamentosSelecionados.delete(event.target.value);
+      if (!event.target.checked) {
+        const selecionarTodos = document.getElementById('selecionar-todos');
+        if (selecionarTodos) selecionarTodos.checked = false;
+      }
+      atualizarContainerAcoes();
+    }
+  }
+
+  function limparSelecoes() {
+    agendamentosSelecionados.clear();
+    document.querySelectorAll('.ag-checkbox, #selecionar-todos').forEach(c => c.checked = false);
+    atualizarContainerAcoes();
+
+    // Garantir sincronização após limpar
+    setTimeout(() => {
+      // Remover IDs do Set que não existem mais nos checkboxes
+      const checkboxesExistentes = Array.from(document.querySelectorAll('.ag-checkbox:not(:disabled)')).map(cb => cb.value);
+      agendamentosSelecionados.forEach(id => {
+        if (!checkboxesExistentes.includes(id)) {
+          agendamentosSelecionados.delete(id);
+        }
+      });
+      atualizarContainerAcoes();
+    }, 100);
+  }
+
+  function confirmarChegadaIndividual(id, acao = 'entrada') {
+    // Verificação de Onda REMOVIDA
+    // const row = document.querySelector(`tr[id="ag-${id}"], div[id="ag-card-${id}"]`);
+    // if (acao === 'entrada' && row && row.getAttribute('data-onda-liberada') === 'false') {
+    //   mostrarToast('Não é possível confirmar chegada sem liberação de onda', 'error');
+    //   return;
+    // }
+
+    agendamentosSelecionados.clear();
+    agendamentosSelecionados.add(id);
+    confirmarChegadaSelecionados(acao);
+  }
+
+  function confirmarChegadaSelecionados(acaoForcada = null) {
+    if (agendamentosSelecionados.size === 0) return mostrarToast('Selecione pelo menos um veículo', 'error');
+
+    let acaoDetectada = null;
+    let encontrouMisto = false;
+    let erroOnda = false;
+    const selecionadosSemOnda = [];
+
+    // Verificar consistência da seleção
+    agendamentosSelecionados.forEach(id => {
+      const row = document.querySelector(`tr[id="ag-${id}"], div[id="ag-card-${id}"]`);
+      if (!row) return;
+
+      // Detectar tipo pelo atributo data-armazem-chegada
+      const jaChegou = row.getAttribute('data-armazem-chegada') === 'true';
+      const acaoItem = jaChegou ? 'saida' : 'entrada';
+
+      if (acaoDetectada === null) {
+        acaoDetectada = acaoItem;
+      } else if (acaoDetectada !== acaoItem) {
+        encontrouMisto = true;
+      }
+
+      // Validação de Onda para Entrada REMOVIDA
+      // if (acaoItem === 'entrada' && row.getAttribute('data-onda-liberada') === 'false') {
+      //   erroOnda = true;
+      //   const placaElement = row.querySelector('.font-mono');
+      //   const placa = placaElement ? placaElement.textContent.trim() : `ID ${id}`;
+      //   selecionadosSemOnda.push(placa);
+      // }
+    });
+
+    if (encontrouMisto) {
+      return mostrarToast('Selecione apenas entradas ou apenas saídas, não ambos.', 'error');
+    }
+
+    // if (erroOnda) {
+    //   return mostrarToast(`Não é possível confirmar chegada sem liberação de onda: ${selecionadosSemOnda.join(', ')}`, 'error');
+    // }
+
+    // Usar ação forçada se fornecida (para clique individual), senão usar a detectada
+    const acaoFinal = acaoForcada || acaoDetectada || 'entrada';
+
+    // Fechar modal anterior se estiver aberto e limpar estado
+    const modalAnterior = document.getElementById('modal-formulario');
+    if (modalAnterior && !modalAnterior.classList.contains('hidden')) {
+      fecharModal();
+      setTimeout(() => {
+        abrirModalArmazem(acaoFinal);
+      }, 100);
+    } else {
+      abrirModalArmazem(acaoFinal);
+    }
+  }
+
+  function abrirModalArmazem(acao) {
+    if (agendamentosSelecionados.size === 0) return mostrarToast('Selecione pelo menos um veículo', 'error');
+
+    const modal = document.getElementById('modal-formulario');
+    modal.setAttribute('data-acao', acao); // Salvar ação no modal
+
+    const quantidade = agendamentosSelecionados.size;
+    const detalhesDiv = document.getElementById('detalhes-agendamento');
+    const mensagemMultiplos = document.getElementById('mensagem-multiplos');
+    const quantidadeSpan = document.getElementById('quantidade-selecionados');
+    const tituloModal = document.getElementById('titulo-modal');
+
+    const tituloTexto = acao === 'saida' ? 'Confirmar Término de Operação' : 'Confirmar Início de Operação';
+
+    // Mostrar campo de observação apenas na saída
+    const campoObs = document.getElementById('campo-observacao-container');
+    const txtObs = document.getElementById('observacao-armazem');
+    if (acao === 'saida') {
+      campoObs.classList.remove('hidden');
+      txtObs.value = ''; // Limpar
+    } else {
+      campoObs.classList.add('hidden');
+      txtObs.value = '';
+    }
+
+    // Se tiver apenas 1 selecionado, mostrar detalhes
+    if (quantidade === 1) {
+      const id = Array.from(agendamentosSelecionados)[0];
+      fetch(`/rondonopolis/portaria/detalhes/?id=${id}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            tituloModal.textContent = tituloTexto;
+            document.getElementById('confirmacao-motorista').textContent = d.agendamento.motorista;
+            document.getElementById('confirmacao-placa').textContent = d.agendamento.placa_veiculo;
+            document.getElementById('confirmacao-transportadora').textContent = d.agendamento.transportadora;
+            document.getElementById('confirmacao-tipo').textContent = d.agendamento.tipo === 'coleta' ? 'Coleta' : 'Entrega';
+
+            // Mostrar detalhes e esconder mensagem de múltiplos
+            detalhesDiv.classList.remove('hidden');
+            mensagemMultiplos.classList.add('hidden');
+
+            modal.classList.remove('hidden');
+
+            limparEventListenersSwipe();
+            resetarSwipeButton(acao);
+            setTimeout(() => inicializarSwipeButton(acao), 150);
+          }
+        });
+    } else {
+      // Se tiver múltiplos, não mostrar detalhes
+      tituloModal.textContent = `${tituloTexto} (${quantidade} veículos)`;
+      quantidadeSpan.textContent = quantidade;
+
+      // Esconder detalhes e mostrar mensagem de múltiplos
+      detalhesDiv.classList.add('hidden');
+      mensagemMultiplos.classList.remove('hidden');
+
+      modal.classList.remove('hidden');
+
+      limparEventListenersSwipe();
+      resetarSwipeButton(acao);
+      setTimeout(() => inicializarSwipeButton(acao), 150);
+    }
+  }
+
+  // Função para filtrar armazém
+  function filtrarArmazem(termo) {
+    const termoLower = termo.toLowerCase().trim();
+
+    // Verificar qual aba está ativa
+    const conteudoPendentes = document.getElementById('conteudo-pendentes');
+    const conteudoConfirmados = document.getElementById('conteudo-confirmados');
+    const pendentesAtivo = conteudoPendentes && !conteudoPendentes.classList.contains('hidden');
+    const confirmadosAtivo = conteudoConfirmados && !conteudoConfirmados.classList.contains('hidden');
+
+    // Filtrar pendentes (desktop e mobile) - apenas se a aba estiver visível
+    if (pendentesAtivo) {
+      const pendentesRows = conteudoPendentes.querySelectorAll('.agendamento-row');
+      pendentesRows.forEach(row => {
+        const motorista = row.getAttribute('data-motorista') || '';
+        const placa = row.getAttribute('data-placa') || '';
+        const transportadora = row.getAttribute('data-transportadora') || '';
+
+        if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Filtrar confirmados (desktop e mobile) - apenas se a aba estiver visível
+    if (confirmadosAtivo) {
+      const confirmadosRows = conteudoConfirmados.querySelectorAll('.confirmado-row');
+      confirmadosRows.forEach(row => {
+        const motorista = row.getAttribute('data-motorista') || '';
+        const placa = row.getAttribute('data-placa') || '';
+        const transportadora = row.getAttribute('data-transportadora') || '';
+
+        if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  // Variáveis para armazenar os event listeners do swipe
+  let swipeMouseMoveHandlerArmazem = null;
+  let swipeMouseUpHandlerArmazem = null;
+  let swipeTouchMoveHandlerArmazem = null;
+  let swipeTouchEndHandlerArmazem = null;
+
+  function limparEventListenersSwipe() {
+    if (swipeMouseMoveHandlerArmazem) {
+      document.removeEventListener('mousemove', swipeMouseMoveHandlerArmazem);
+      swipeMouseMoveHandlerArmazem = null;
+    }
+    if (swipeMouseUpHandlerArmazem) {
+      document.removeEventListener('mouseup', swipeMouseUpHandlerArmazem);
+      swipeMouseUpHandlerArmazem = null;
+    }
+    if (swipeTouchMoveHandlerArmazem) {
+      document.removeEventListener('touchmove', swipeTouchMoveHandlerArmazem);
+      swipeTouchMoveHandlerArmazem = null;
+    }
+    if (swipeTouchEndHandlerArmazem) {
+      document.removeEventListener('touchend', swipeTouchEndHandlerArmazem);
+      swipeTouchEndHandlerArmazem = null;
+    }
+  }
+
+  function inicializarSwipeButton() {
+    const track = document.querySelector('.swipe-track');
+    const thumb = document.querySelector('.swipe-thumb');
+    if (!track || !thumb) return;
+
+    // Limpar listeners anteriores antes de adicionar novos
+    limparEventListenersSwipe();
+
+    resetarSwipeButton();
+    trackWidth = track.offsetWidth; thumbWidth = thumb.offsetWidth;
+    const max = trackWidth - thumbWidth - 8;
+
+    const start = e => { isDragging = true; startX = (e.clientX || e.touches[0].clientX) - thumb.getBoundingClientRect().left; };
+    const move = e => {
+      if (!isDragging) return;
+      currentX = (e.clientX || e.touches[0].clientX) - track.getBoundingClientRect().left - startX;
+      currentX = Math.max(0, Math.min(currentX, max));
+      thumb.style.transform = `translateX(${currentX}px)`;
+      const p = currentX / max;
+      document.querySelector('.swipe-progress').style.transform = `scaleX(${p})`;
+      if (p > 0.7) {
+        track.classList.add('success');
+        document.querySelector('.swipe-text').innerHTML = `<span class="text-white font-medium">Solte para confirmar</span>`;
+      } else {
+        track.classList.remove('success');
+        const acao = document.getElementById('modal-formulario').getAttribute('data-acao');
+        const textoAcao = acao === 'saida' ? 'Confirmar TÉRMINO' : 'Confirmar INÍCIO';
+        document.querySelector('.swipe-text').innerHTML = `<span class="text-gray-500 font-medium">Deslize para ${textoAcao}</span>`;
+      }
+    };
+    const end = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      if (currentX > max * 0.8) confirmarNoArmazem();
+      else resetarSwipeButton();
+    };
+
+    // Armazenar handlers para poder removê-los depois
+    swipeMouseMoveHandlerArmazem = move;
+    swipeMouseUpHandlerArmazem = end;
+    swipeTouchMoveHandlerArmazem = move;
+    swipeTouchEndHandlerArmazem = end;
+
+    // Usar addEventListener para poder remover depois
+    thumb.addEventListener('mousedown', start);
+    thumb.addEventListener('touchstart', start);
+
+    // Armazenar handlers para poder removê-los depois
+    swipeMouseMoveHandlerArmazem = move;
+    swipeMouseUpHandlerArmazem = end;
+    swipeTouchMoveHandlerArmazem = move;
+    swipeTouchEndHandlerArmazem = end;
+
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', end);
+    document.addEventListener('touchmove', move);
+    document.addEventListener('touchend', end);
+  }
+
+  function resetarSwipeButton(acao) {
+    const thumb = document.querySelector('.swipe-thumb');
+    const track = document.querySelector('.swipe-track');
+    const prog = document.querySelector('.swipe-progress');
+
+    // Obter ação se não fornecida
+    if (!acao) acao = document.getElementById('modal-formulario').getAttribute('data-acao') || 'entrada';
+    const textoAcao = acao === 'saida' ? 'Confirmar TÉRMINO' : 'Confirmar INÍCIO';
+
+    if (thumb) thumb.style.transform = 'translateX(0)';
+    track?.classList.remove('success');
+    prog && (prog.style.transform = 'scaleX(0)');
+
+    const textEl = document.querySelector('.swipe-text');
+    if (textEl) textEl.innerHTML = `<span class="text-gray-500 font-medium">Deslize para ${textoAcao}</span>`;
+  }
+
+  async function confirmarNoArmazem() {
+    mostrarLoading();
+    const modal = document.getElementById('modal-formulario');
+    const acao = modal.getAttribute('data-acao') || 'entrada';
+
+    const endpoint = acao === 'saida'
+      ? '/rondonopolis/armazem/registrar-saida/'
+      : '/rondonopolis/armazem/registrar-entrada/';
+
+    const fd = new FormData();
+    for (const id of agendamentosSelecionados) fd.append('ids[]', id);
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    // Adicionar observação apenas na saída
+    if (acao === 'saida') {
+      const obs = document.getElementById('observacao-armazem').value;
+      if (obs) fd.append('observacao', obs);
+    }
+
+    const r = await fetch(endpoint, { method: 'POST', body: fd });
+    const d = await r.json();
+    esconderLoading();
+    fecharModal();
+    if (d.success) {
+      const msgSucesso = acao === 'saida' ? 'Término de operação registrado!' : 'Início de operação registrado!';
+      mostrarToast(d.message || msgSucesso, 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      mostrarToast(d.error || 'Erro ao confirmar', 'error');
+    }
+  }
+
+  function fecharModal() {
+    const modal = document.getElementById('modal-formulario');
+    if (modal) {
+      modal.classList.add('hidden');
+      // Limpar todos os event listeners do swipe button
+      limparEventListenersSwipe();
+      // Resetar o swipe button
+      resetarSwipeButton();
+      // Limpar o ID do agendamento selecionado
+      agendamentoSelecionado = null;
+      // Remover atributo do modal
+      modal.removeAttribute('data-agendamento-id');
+      // Limpar qualquer estado do formulário
+      const form = modal.querySelector('form');
+      if (form) {
+        form.reset();
+      }
+    }
+  }
+
+  function mostrarLoading() { document.getElementById('loadingOverlay').classList.remove('hidden'); }
+  function esconderLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+
+
+
+  // Relógio em tempo real para Rondonópolis (sincronizado com o servidor)
+  let offsetServidor = 0; // Diferença em milissegundos entre o cliente e o servidor
+
+  function atualizarRelogio() {
+    const relogioElement = document.getElementById('confirmacao-horario');
+    const hiddenElement = document.getElementById('confirmacao-horario-hidden');
+    if (relogioElement) {
+      // Usar o horário do servidor ajustado pelo offset
+      const agora = new Date(Date.now() + offsetServidor);
+      const opcoes = {
+        timeZone: 'America/Cuiaba',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      };
+      const horarioCompleto = agora.toLocaleTimeString('pt-BR', { ...opcoes, second: '2-digit' });
+      const horarioSemSegundos = agora.toLocaleTimeString('pt-BR', { ...opcoes });
+
+      relogioElement.textContent = horarioCompleto;
+      if (hiddenElement) {
+        hiddenElement.value = horarioSemSegundos; // Atualiza input hidden
+      }
+    }
+  }
+
+  // Sincronizar com o servidor a cada 30 segundos
+  function sincronizarComServidor() {
+    fetch('{% url "rondonopolis:obter_horario_atual" %}')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          // O timestamp vem em ISO com timezone de Rondonópolis
+          const horarioServidor = new Date(d.timestamp);
+          const agoraCliente = new Date();
+          offsetServidor = horarioServidor.getTime() - agoraCliente.getTime();
+          atualizarRelogio();
+        }
+      })
+      .catch(() => {
+        atualizarRelogio();
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Iniciar relógio
+    sincronizarComServidor();
+    setInterval(atualizarRelogio, 1000);
+    setInterval(sincronizarComServidor, 30000);
+
+    // Atualizar relógio quando o modal for aberto
+    const modal = document.getElementById('modal-formulario');
+
+
+    document.getElementById('tab-pendentes').onclick = () => alternarAba('pendentes');
+    document.getElementById('tab-confirmados').onclick = () => alternarAba('confirmados');
+
+    // Garantir que o container de ações comece escondido
+    atualizarContainerAcoes();
+
+    // Atualizar quando a janela for redimensionada
+    window.addEventListener('resize', atualizarContainerAcoes);
+
+    // Checkbox desktop
+    const selecionarTodos = document.getElementById('selecionar-todos');
+    if (selecionarTodos) {
+      selecionarTodos.onchange = function () {
+        document.querySelectorAll('.ag-checkbox:not(:disabled)').forEach(cb => {
+          cb.checked = this.checked;
+          this.checked ? agendamentosSelecionados.add(cb.value) : agendamentosSelecionados.delete(cb.value);
+        });
+        atualizarContainerAcoes();
+      };
+    }
+
+    // Usar event delegation para evitar problemas com atualizações dinâmicas
+    const tbodyPendentes = document.getElementById('conteudo-pendentes');
+    if (tbodyPendentes) {
+      tbodyPendentes.addEventListener('change', function (e) {
+        if (e.target && e.target.matches('input.ag-checkbox')) {
+          handleCheckboxChangeArmazem(e);
+        }
+      });
+    }
+
+
+    // Barra de pesquisa
+    const pesquisaInput = document.getElementById('pesquisa-armazem');
+    if (pesquisaInput) {
+      pesquisaInput.addEventListener('input', function (e) {
+        filtrarArmazem(e.target.value);
+      });
+    }
+  });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/smart_update.js' %}?v=5"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Inicializar Smart Update para a tela 'armazem'
+    SmartUpdate.init('armazem');
+  });
+</script>
+{% endblock %}

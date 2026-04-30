@@ -1,0 +1,276 @@
+{% load tz %}
+<!-- Pendentes -->
+<div id="conteudo-pendentes" class="tab-content">
+    <!-- Desktop: Tabela -->
+    <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+        <table class="min-w-full text-[14px]">
+            <thead>
+                <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+                    <th class="py-2 px-3 text-left font-medium w-8"></th>
+                    <th class="py-2 px-3 text-left font-medium">Motorista</th>
+                    <th class="py-2 px-3 text-left font-medium">Placa</th>
+                    <th class="py-2 px-3 text-left font-medium">Tipo</th>
+                    <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+                    <th class="py-2 px-3 text-left font-medium">Veículo</th>
+                    <th class="py-2 px-3 text-left font-medium">Liberado Portaria</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in pendentes %}
+                <tr class="border-b border-gray-100 hover:bg-gray-50 agendamento-row" id="agendamento-{{ ag.id }}"
+                    data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+                    data-transportadora="{{ ag.transportadora.nome|lower }}">
+                    <td class="py-2 px-3">
+                        <input type="checkbox" name="agendamento_selecionado" value="{{ ag.id }}"
+                            class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                    </td>
+                    <td class="py-2 px-3 font-medium text-gray-900">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                            {{ ag.motorista.nome }}
+                        </div>
+                    </td>
+                    <td class="py-2 px-3 font-mono text-gray-800">{{ ag.placa_veiculo }}</td>
+                    <td class="py-2 px-3">
+                        {% if ag.tipo == 'coleta' %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3">{{ ag.transportadora.nome }}</td>
+                    <td class="py-2 px-3">{{ ag.get_tipo_veiculo_display }}</td>
+                    <td class="py-2 px-3 text-xs text-gray-600">
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-1">
+                                <i class="bi bi-door-open text-sky-600"></i>
+                                <span class="font-medium">Liberado:</span>
+                                <span>
+                                    {% timezone "America/Cuiaba" %}
+                                    {{ ag.portaria_liberacao|date:"d/m H:i" }}
+                                    {% endtimezone %}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <i class="bi bi-person-check text-sky-600"></i>
+                                <span class="font-medium">Por:</span>
+                                <span class="text-sky-700 font-medium">
+                                    {% if ag.portaria_liberado_por.get_full_name %}
+                                    {{ ag.portaria_liberado_por.get_full_name }}
+                                    {% elif ag.portaria_liberado_por.username %}
+                                    {{ ag.portaria_liberado_por.username }}
+                                    {% else %}
+                                    Usuário bugado
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="py-8 text-center text-gray-400">Nenhum veículo aguardando CheckList</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile: Cards -->
+    <div class="md:hidden space-y-2.5">
+        {% for ag in pendentes %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row"
+            id="agendamento-card-{{ ag.id }}" data-motorista="{{ ag.motorista.nome|lower }}"
+            data-placa="{{ ag.placa_veiculo|lower }}" data-transportadora="{{ ag.transportadora.nome|lower }}">
+            <div class="mb-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                    <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
+                </div>
+                <div class="space-y-1 text-xs text-gray-600">
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-truck text-gray-400 text-xs"></i>
+                        <span class="font-mono">{{ ag.placa_veiculo }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-tag text-gray-400 text-xs"></i>
+                        {% if ag.tipo == 'coleta' %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+                        {% else %}
+                        <span
+                            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-building text-gray-400 text-xs"></i>
+                        <span class="truncate">{{ ag.transportadora.nome }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="bi bi-truck text-gray-400 text-xs"></i>
+                        <span>{{ ag.get_tipo_veiculo_display }}</span>
+                    </div>
+                </div>
+
+                <!-- Retângulo de Liberação na Portaria (apenas mobile) -->
+                <div class="mt-2.5 p-2.5 bg-gray-100 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <i class="bi bi-door-open text-sky-600 text-xs"></i>
+                        <span class="text-xs font-semibold text-gray-700">Liberação na Portaria</span>
+                    </div>
+                    <div class="space-y-1 text-xs text-gray-700">
+                        <div class="flex items-center gap-1.5">
+                            <i class="bi bi-clock text-gray-500 text-xs"></i>
+                            <span class="font-medium">Liberado:</span>
+                            <span>
+                                {% timezone "America/Cuiaba" %}
+                                {{ ag.portaria_liberacao|date:"d/m H:i" }}
+                                {% endtimezone %}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <i class="bi bi-person-check text-gray-500 text-xs"></i>
+                            <span class="font-medium">Por:</span>
+                            <span class="text-sky-700 font-medium">
+                                {% if ag.portaria_liberado_por.get_full_name %}
+                                {{ ag.portaria_liberado_por.get_full_name }}
+                                {% elif ag.portaria_liberado_por.username %}
+                                {{ ag.portaria_liberado_por.username }}
+                                {% else %}
+                                Usuário bugado
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button onclick="abrirModalPreenchimentoIndividual('{{ ag.id }}')"
+                class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2.5 rounded-md transition-colors">
+                <i class="bi bi-pencil-square"></i>
+                <span>Preencher CheckList</span>
+            </button>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <p class="text-gray-400 text-sm">Nenhum veículo aguardando CheckList</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Concluídos -->
+<div id="conteudo-concluidos" class="tab-content hidden">
+    <!-- Desktop: Tabela -->
+    <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+        <table class="min-w-full text-[14px]">
+            <thead>
+                <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+                    <th class="py-2 px-3 text-left font-medium">Motorista</th>
+                    <th class="py-2 px-3 text-left font-medium">Placa</th>
+                    <th class="py-2 px-3 text-left font-medium">Nº CheckList</th>
+                    <th class="py-2 px-3 text-left font-medium">Preenchido em</th>
+                    <th class="py-2 px-3 text-left font-medium">Por</th>
+                    <th class="py-2 px-3 text-left font-medium">Observação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ag in concluidos %}
+                <tr class="border-b border-gray-100 hover:bg-gray-50 concluido-row"
+                    data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+                    data-transportadora="{{ ag.transportadora.nome|lower }}">
+                    <td class="py-2 px-3 font-medium text-gray-900">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
+                            {{ ag.motorista.nome }}
+                        </div>
+                    </td>
+                    <td class="py-2 px-3 font-mono text-gray-800">{{ ag.placa_veiculo }}</td>
+                    <td class="py-2 px-3 font-medium text-sky-700">{{ ag.checklist_numero|default:"-" }}</td>
+                    <td class="py-2 px-3 text-gray-600">
+                        {% timezone "America/Cuiaba" %}
+                        {{ ag.checklist_data|date:"d/m H:i" }}
+                        {% endtimezone %}
+                    </td>
+                    <td class="py-2 px-3 text-emerald-700 font-medium">
+                        {% if ag.checklist_preenchido_por.get_full_name %}
+                        {{ ag.checklist_preenchido_por.get_full_name }}
+                        {% elif ag.checklist_preenchido_por.username %}
+                        {{ ag.checklist_preenchido_por.username }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="py-2 px-3 text-gray-600 text-sm">{{ ag.checklist_observacao|default:"-"|linebreaksbr }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="py-8 text-center text-gray-400">Nenhum CheckList preenchido hoje</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile: Cards -->
+    <div class="md:hidden space-y-2.5">
+        {% for ag in concluidos %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 concluido-row"
+            data-motorista="{{ ag.motorista.nome|lower }}" data-placa="{{ ag.placa_veiculo|lower }}"
+            data-transportadora="{{ ag.transportadora.nome|lower }}">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
+                <h3 class="font-semibold text-gray-900 text-sm">{{ ag.motorista.nome }}</h3>
+            </div>
+            <div class="space-y-1 text-xs text-gray-600">
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-truck text-gray-400 text-xs"></i>
+                    <span class="font-mono">{{ ag.placa_veiculo }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-file-text text-gray-400 text-xs"></i>
+                    <span class="text-sky-700 font-medium">{{ ag.checklist_numero|default:"-" }}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-clock text-gray-400 text-xs"></i>
+                    <span>
+                        {% timezone "America/Cuiaba" %}
+                        {{ ag.checklist_data|date:"d/m H:i" }}
+                        {% endtimezone %}
+                    </span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-person-check text-gray-400 text-xs"></i>
+                    <span class="text-emerald-700 font-medium">
+                        {% if ag.checklist_preenchido_por.get_full_name %}
+                        {{ ag.checklist_preenchido_por.get_full_name }}
+                        {% elif ag.checklist_preenchido_por.username %}
+                        {{ ag.checklist_preenchido_por.username }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </span>
+                </div>
+                {% if ag.checklist_observacao %}
+                <div class="flex items-start gap-1.5 pt-1 border-t border-gray-100">
+                    <i class="bi bi-chat-left-text text-gray-400 text-xs mt-0.5"></i>
+                    <span class="text-gray-600">{{ ag.checklist_observacao|linebreaksbr }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <p class="text-gray-400 text-sm">Nenhum CheckList preenchido hoje</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Elementos Ocultos para o SmartUpdate atualizar as abas -->
+
+<!-- Elementos Ocultos para o SmartUpdate atualizar as abas -->
+<span id="badge-pendentes" class="hidden">{{ pendentes|length }}</span>
+<span id="badge-concluidos" class="hidden">{{ concluidos|length }}</span>

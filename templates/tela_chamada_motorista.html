@@ -1,0 +1,461 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tela de Chamada de Motoristas - Rondonópolis</title>
+  <link rel="icon" type="image/png" href="{% static 'imagens/icone.png' %}">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  
+  <style>
+    html, body { 
+      height: 100%; 
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden">
+
+<!-- Áudio para chamada -->
+<audio id="audioChamada" preload="none">
+  <source src="{% static 'audio/chamada_motorista.mp3' %}" type="audio/mpeg">
+</audio>
+
+<!-- Tela de Chamada Ativa -->
+<div id="telaChamada" class="hidden fixed inset-0 bg-gradient-to-br from-sky-600 via-sky-700 to-blue-800 z-[60] flex items-center justify-center">
+  <div class="text-center text-white px-8 max-w-4xl">
+    <!-- Ícone animado -->
+    <div class="mb-8">
+      <div class="relative inline-block">
+        <div class="absolute inset-0 bg-white rounded-full animate-ping opacity-75"></div>
+        <div class="relative bg-white bg-opacity-20 backdrop-blur-lg rounded-full p-8">
+          <i class="bi bi-megaphone-fill text-8xl text-white animate-pulse"></i>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Nome do Motorista -->
+    <h1 id="nomeMotoristaChamada" class="text-6xl font-bold mb-6 animate-bounce text-white"></h1>
+    
+    <!-- Informações do Agendamento -->
+    <div id="infoAgendamentoChamada" class="text-2xl mb-8 space-y-3">
+      <p id="placaChamada" class="font-semibold text-white"></p>
+      <p id="tipoChamada" class="text-sky-100"></p>
+      <p id="transportadoraChamada" class="text-sky-100"></p>
+    </div>
+    
+    <!-- Status do Áudio -->
+    <div id="statusAudio" class="text-lg text-sky-100 mb-4 font-medium">
+      Reproduzindo chamada...
+    </div>
+  </div>
+</div>
+
+<!-- Tela Aguardando Chamada -->
+<div id="telaAguardando" class="flex items-center justify-center h-screen bg-slate-50">
+  <div class="text-center p-8">
+    <div class="mb-8">
+      <div class="inline-block p-6 bg-white rounded-full shadow-lg">
+        <i class="bi bi-megaphone text-8xl text-slate-400"></i>
+      </div>
+    </div>
+    <h1 class="text-3xl font-semibold text-slate-800 mb-4">Tela de Chamada de Motoristas</h1>
+    <p class="text-lg text-slate-600 mb-2">Aguardando chamada...</p>
+    <p class="text-sm text-slate-500 mt-4">Esta tela atualiza automaticamente quando um motorista é chamado</p>
+    <div class="mt-6 flex items-center justify-center gap-2">
+      <div class="w-2 h-2 bg-sky-600 rounded-full animate-pulse"></div>
+      <div class="w-2 h-2 bg-sky-600 rounded-full animate-pulse" style="animation-delay: 0.2s;"></div>
+      <div class="w-2 h-2 bg-sky-600 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div>
+    </div>
+    <!-- Botão de teste de áudio -->
+    <button onclick="testarAudio()" class="mt-6 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors">
+      <i class="bi bi-volume-up"></i> Testar Áudio
+    </button>
+    <p id="statusAudioTeste" class="text-xs text-slate-400 mt-2"></p>
+  </div>
+</div>
+
+<script>
+let audioChamada = document.getElementById('audioChamada');
+let telaChamada = document.getElementById('telaChamada');
+let telaAguardando = document.getElementById('telaAguardando');
+let reproducoesFeitas = 0;
+const MAX_REPRODUCOES = 2;
+let chamadasProcessadas = new Set(); // IDs das chamadas já processadas
+let verificandoChamada = false;
+let reproduzindoAudio = false;
+let timeoutAudio = null;
+let filaChamadas = []; // Fila local de chamadas pendentes
+
+// Verificar novas chamadas periodicamente
+function verificarNovaChamada() {
+    // Não verificar se estiver reproduzindo áudio - processar fila sequencialmente
+    if (reproduzindoAudio) {
+        return;
+    }
+    
+    // Se já houver chamadas na fila local, processar a próxima
+    if (filaChamadas.length > 0) {
+        const proximaChamada = filaChamadas.shift();
+        if (proximaChamada && !chamadasProcessadas.has(proximaChamada.id)) {
+            chamadasProcessadas.add(proximaChamada.id);
+            exibirChamada(proximaChamada);
+            return;
+        }
+    }
+    
+    if (verificandoChamada) return;
+    
+    verificandoChamada = true;
+    
+    fetch('/rondonopolis/motoristas/verificar-chamada/', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(r => {
+        if (!r.ok) {
+            throw new Error(`HTTP error! status: ${r.status}`);
+        }
+        return r.json();
+    })
+    .then(data => {
+        verificandoChamada = false;
+        
+        if (data.success && data.tem_chamada) {
+            const chamada = data.chamada;
+            const chamadaId = chamada.id || chamada.timestamp;
+            
+            // Verificar se é uma nova chamada (não a mesma que já foi reproduzida)
+            if (!chamadasProcessadas.has(chamadaId)) {
+                // Adicionar à fila local para processar sequencialmente
+                filaChamadas.push(chamada);
+            }
+        }
+    })
+    .catch(error => {
+        verificandoChamada = false;
+        console.error('Erro ao verificar chamada:', error);
+        // Não mostrar erro ao usuário, apenas logar
+    });
+}
+
+// Exibir a chamada na tela
+function exibirChamada(chamada) {
+    // Marcar como processada
+    const chamadaId = chamada.id || chamada.timestamp;
+    chamadasProcessadas.add(chamadaId);
+    
+    // Preencher informações na tela
+    document.getElementById('nomeMotoristaChamada').textContent = chamada.motorista_nome;
+    document.getElementById('placaChamada').textContent = `Placa: ${chamada.placa}`;
+    document.getElementById('tipoChamada').textContent = `Tipo: ${chamada.tipo}`;
+    document.getElementById('transportadoraChamada').textContent = `Transportadora: ${chamada.transportadora}`;
+    
+    // Mostrar tela de chamada e esconder tela de aguardo
+    telaChamada.classList.remove('hidden');
+    telaAguardando.classList.add('hidden');
+    
+    // Resetar estado de reprodução
+    reproducoesFeitas = 0;
+    reproduzindoAudio = true;
+    
+    // Limpar qualquer timeout anterior
+    if (timeoutAudio) {
+        clearTimeout(timeoutAudio);
+    }
+    
+    // Parar qualquer áudio anterior
+    if (audioChamada) {
+        audioChamada.pause();
+        audioChamada.currentTime = 0;
+    }
+    if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+    }
+    
+    // Iniciar reprodução do áudio após um pequeno delay
+    setTimeout(() => {
+        reproduzirAudio();
+    }, 300);
+}
+
+// Reproduzir áudio duas vezes
+function reproduzirAudio() {
+    if (reproducoesFeitas >= MAX_REPRODUCOES) {
+        // Parar após duas reproduções
+        document.getElementById('statusAudio').textContent = 'Chamada concluída';
+        document.getElementById('statusAudio').classList.remove('text-sky-100');
+        document.getElementById('statusAudio').classList.add('text-green-300');
+        
+        // Parar qualquer áudio que esteja tocando
+        if (audioChamada) {
+            audioChamada.pause();
+            audioChamada.currentTime = 0;
+        }
+        if ('speechSynthesis' in window) {
+            speechSynthesis.cancel();
+        }
+        
+        reproduzindoAudio = false;
+        
+        // Esconder tela de chamada e mostrar tela de aguardo após 3 segundos
+        timeoutAudio = setTimeout(() => {
+            telaChamada.classList.add('hidden');
+            telaAguardando.classList.remove('hidden');
+            
+            // Verificar se há mais chamadas na fila após terminar
+            setTimeout(() => {
+                verificarNovaChamada();
+            }, 500);
+        }, 3000);
+        
+        return;
+    }
+    
+    reproducoesFeitas++;
+    document.getElementById('statusAudio').textContent = `Reproduzindo chamada ${reproducoesFeitas} de ${MAX_REPRODUCOES}...`;
+    
+    // Usar Web Speech API diretamente (mais confiável)
+    falarChamada();
+}
+
+// Função para usar Web Speech API
+function falarChamada() {
+    console.log('Iniciando falarChamada, reproducoesFeitas:', reproducoesFeitas);
+    
+    if (!('speechSynthesis' in window)) {
+        console.error('Síntese de voz não disponível no navegador');
+        setTimeout(() => {
+            reproduzirAudio();
+        }, 2000);
+        return;
+    }
+    
+    const nomeMotoristaEl = document.getElementById('nomeMotoristaChamada');
+    if (!nomeMotoristaEl) {
+        console.error('Elemento nomeMotoristaChamada não encontrado');
+        setTimeout(() => {
+            reproduzirAudio();
+        }, 2000);
+        return;
+    }
+    
+    const nomeMotorista = nomeMotoristaEl.textContent;
+    if (!nomeMotorista || nomeMotorista.trim() === '') {
+        console.error('Nome do motorista vazio');
+        setTimeout(() => {
+            reproduzirAudio();
+        }, 2000);
+        return;
+    }
+    
+    const mensagem = `Atenção! Chamada para o motorista ${nomeMotorista}. Compareça à portaria.`;
+    
+    console.log('Mensagem a ser falada:', mensagem);
+    
+    // Cancelar qualquer fala anterior
+    try {
+        speechSynthesis.cancel();
+    } catch (e) {
+        console.warn('Erro ao cancelar síntese:', e);
+    }
+    
+    // Aguardar um pouco para garantir que cancelou
+    setTimeout(() => {
+        // Obter vozes disponíveis
+        let vozes = speechSynthesis.getVoices();
+        console.log('Vozes disponíveis:', vozes.length);
+        
+        // Se não houver vozes ainda, aguardar o evento voiceschanged
+        if (vozes.length === 0) {
+            console.log('Aguardando carregamento de vozes...');
+            const handler = function() {
+                vozes = speechSynthesis.getVoices();
+                console.log('Vozes carregadas:', vozes.length);
+                speechSynthesis.removeEventListener('voiceschanged', handler);
+                executarFala(mensagem, vozes);
+            };
+            speechSynthesis.addEventListener('voiceschanged', handler);
+            
+            // Timeout de segurança
+            setTimeout(() => {
+                if (vozes.length === 0) {
+                    speechSynthesis.removeEventListener('voiceschanged', handler);
+                    console.log('Timeout ao carregar vozes, usando sem voz específica');
+                    executarFala(mensagem, []);
+                }
+            }, 2000);
+        } else {
+            executarFala(mensagem, vozes);
+        }
+    }, 300);
+}
+
+// Função auxiliar para executar a fala
+function executarFala(mensagem, vozes) {
+    try {
+        // Verificar se speechSynthesis ainda está disponível
+        if (!('speechSynthesis' in window)) {
+            console.error('speechSynthesis não disponível');
+            setTimeout(() => {
+                reproduzirAudio();
+            }, 2000);
+            return;
+        }
+        
+        // Cancelar qualquer fala em andamento
+        speechSynthesis.cancel();
+        
+        // Aguardar um pouco antes de criar novo utterance
+        setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(mensagem);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1;
+            
+            // Tentar encontrar uma voz em português
+            if (vozes && vozes.length > 0) {
+                const vozPT = vozes.find(voz => voz.lang.startsWith('pt')) || vozes[0];
+                utterance.voice = vozPT;
+                console.log('Usando voz:', vozPT.name, vozPT.lang);
+            }
+            
+            // Event listeners para debug
+            utterance.onstart = function() {
+                console.log('✅ Áudio iniciado:', reproducoesFeitas);
+                const statusEl = document.getElementById('statusAudio');
+                if (statusEl) {
+                    statusEl.textContent = `🔊 Reproduzindo chamada ${reproducoesFeitas} de ${MAX_REPRODUCOES}...`;
+                }
+            };
+            
+            utterance.onend = function() {
+                console.log('✅ Áudio terminado:', reproducoesFeitas);
+                // Reproduzir novamente após um delay
+                setTimeout(() => {
+                    reproduzirAudio();
+                }, 500);
+            };
+            
+            utterance.onerror = function(e) {
+                console.error('❌ Erro na síntese de voz:', e.error, 'Reprodução:', reproducoesFeitas, e);
+                const statusEl = document.getElementById('statusAudio');
+                if (statusEl) {
+                    statusEl.textContent = `⚠️ Erro ao reproduzir, tentando novamente...`;
+                }
+                // Se falhar, apenas incrementar contador após um tempo
+                setTimeout(() => {
+                    reproduzirAudio();
+                }, 2000);
+            };
+            
+            console.log(`🎤 Tentando reproduzir síntese de voz ${reproducoesFeitas} de ${MAX_REPRODUCOES}`);
+            
+            try {
+                speechSynthesis.speak(utterance);
+                console.log('✅ speechSynthesis.speak() chamado com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao chamar speechSynthesis.speak():', error);
+                // Se falhar, tentar novamente após um tempo
+                setTimeout(() => {
+                    reproduzirAudio();
+                }, 2000);
+            }
+        }, 100);
+    } catch (error) {
+        console.error('❌ Erro geral em executarFala:', error);
+        setTimeout(() => {
+            reproduzirAudio();
+        }, 2000);
+    }
+}
+
+// Função para testar áudio (botão de teste)
+function testarAudio() {
+    const statusEl = document.getElementById('statusAudioTeste');
+    statusEl.textContent = 'Testando áudio...';
+    
+    if (!('speechSynthesis' in window)) {
+        statusEl.textContent = '❌ Síntese de voz não disponível';
+        statusEl.classList.add('text-red-500');
+        return;
+    }
+    
+    const mensagem = 'Teste de áudio. Se você ouviu esta mensagem, o áudio está funcionando.';
+    const utterance = new SpeechSynthesisUtterance(mensagem);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 0.9;
+    utterance.volume = 1;
+    
+    utterance.onend = function() {
+        statusEl.textContent = '✅ Áudio funcionando!';
+        statusEl.classList.remove('text-red-500');
+        statusEl.classList.add('text-green-500');
+    };
+    
+    utterance.onerror = function(e) {
+        statusEl.textContent = '❌ Erro: ' + e.error;
+        statusEl.classList.add('text-red-500');
+    };
+    
+    speechSynthesis.speak(utterance);
+}
+
+// Carregar vozes quando disponíveis (necessário para alguns navegadores)
+function carregarVozes() {
+    const vozes = speechSynthesis.getVoices();
+    if (vozes.length === 0) {
+        speechSynthesis.addEventListener('voiceschanged', function() {
+            console.log('Vozes carregadas:', speechSynthesis.getVoices().length);
+        }, { once: true });
+    } else {
+        console.log('Vozes já disponíveis:', vozes.length);
+    }
+}
+
+// Iniciar verificação periódica quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Página carregada, inicializando tela de chamada');
+    
+    // Garantir que a tela de aguardo está visível inicialmente
+    telaChamada.classList.add('hidden');
+    telaAguardando.classList.remove('hidden');
+    
+    // Carregar vozes
+    if ('speechSynthesis' in window) {
+        carregarVozes();
+    }
+    
+    // NÃO verificar imediatamente para evitar pegar chamadas antigas
+    // Aguardar 3 segundos antes de começar a verificar
+    setTimeout(() => {
+        console.log('Iniciando verificação de chamadas');
+        verificarNovaChamada();
+        
+        // Verificar a cada 2 segundos
+        setInterval(verificarNovaChamada, 2000);
+    }, 3000);
+    
+    // Permitir interação do usuário para desbloquear áudio (necessário em alguns navegadores)
+    document.addEventListener('click', function() {
+        console.log('Interação do usuário detectada, áudio desbloqueado');
+    }, { once: true });
+    
+    document.addEventListener('keydown', function() {
+        console.log('Tecla pressionada, áudio desbloqueado');
+    }, { once: true });
+});
+</script>
+</body>
+</html>

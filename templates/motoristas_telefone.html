@@ -1,0 +1,188 @@
+{% extends 'baserdn.html' %}
+{% load static %}
+
+{% block title %}Telefones dos Motoristas - Rondonópolis{% endblock %}
+
+{% block content %}
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-emerald-600"></span>
+    <h1 class="text-2xl font-semibold text-gray-900">Telefones dos Motoristas</h1>
+  </div>
+  
+  <button onclick="location.href='{% url 'portaria_agendamentos' %}'" 
+          class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md transition-colors duration-200">
+    <i class="bi bi-arrow-left"></i>
+    Voltar para Portaria
+  </button>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+  <div class="p-4 border-b border-gray-200 bg-gray-50">
+    <h2 class="text-lg font-medium text-gray-700">Cadastro e Edição de Telefones</h2>
+    <p class="text-sm text-gray-600 mt-1">Atualize os números de telefone dos motoristas para habilitar a função de chamada</p>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-[14px]">
+      <thead>
+        <tr class="bg-gray-50 border-b border-gray-200">
+          <th class="py-3 px-4 text-left font-medium text-gray-700">Motorista</th>
+          <th class="py-3 px-4 text-left font-medium text-gray-700">Telefone Atual</th>
+          <th class="py-3 px-4 text-left font-medium text-gray-700">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for motorista in motoristas %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50">
+          <td class="py-3 px-4 font-medium text-gray-900">
+            {{ motorista.nome }}
+          </td>
+          <td class="py-3 px-4">
+            {% if motorista.telefone %}
+              <span class="text-emerald-600 font-medium">{{ motorista.telefone }}</span>
+            {% else %}
+              <span class="text-gray-400">Não cadastrado</span>
+            {% endif %}
+          </td>
+          <td class="py-3 px-4">
+            <button onclick="abrirModalEditarTelefone('{{ motorista.id }}', '{{ motorista.nome }}', '{{ motorista.telefone|default:"" }}')"
+                    class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
+              <i class="bi bi-pencil"></i>
+              Editar Telefone
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="py-4 text-center text-gray-400">Nenhum motorista cadastrado</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal para editar telefone -->
+<div id="modal-editar-telefone" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto">
+    <div class="flex justify-between items-center p-6 border-b border-gray-200">
+      <h3 class="text-xl font-semibold text-gray-900">Editar Telefone</h3>
+      <button onclick="fecharModalTelefone()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-2xl"></i>
+      </button>
+    </div>
+    
+    <div class="p-6">
+      <form id="form-editar-telefone">
+        {% csrf_token %}
+        <input type="hidden" id="motorista-id" name="motorista_id">
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Motorista</label>
+          <p id="motorista-nome" class="text-gray-900 font-medium bg-gray-50 p-3 rounded-md"></p>
+        </div>
+        
+        <div class="mb-6">
+          <label for="telefone-input" class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+          <input type="text" id="telefone-input" name="telefone" 
+                 placeholder="Ex: (43) 99999-9999"
+                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+          <p class="text-xs text-gray-500 mt-1">Formato: (DDD) 9XXXX-XXXX</p>
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button type="button" onclick="fecharModalTelefone()" 
+                  class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" 
+                  class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+            <i class="bi bi-check-lg"></i>
+            Salvar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let motoristaEditando = null;
+
+function abrirModalEditarTelefone(id, nome, telefone) {
+    motoristaEditando = id;
+    document.getElementById('motorista-id').value = id;
+    document.getElementById('motorista-nome').textContent = nome;
+    document.getElementById('telefone-input').value = telefone || '';
+    document.getElementById('modal-editar-telefone').classList.remove('hidden');
+}
+
+function fecharModalTelefone() {
+    document.getElementById('modal-editar-telefone').classList.add('hidden');
+    motoristaEditando = null;
+}
+
+// Formatar telefone enquanto digita
+document.getElementById('telefone-input').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    
+    if (value.length <= 11) {
+        if (value.length <= 2) {
+            value = value.replace(/^(\d{0,2})/, '($1');
+        } else if (value.length <= 6) {
+            value = value.replace(/^(\d{2})(\d{0,4})/, '($1) $2');
+        } else if (value.length <= 10) {
+            value = value.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+        } else {
+            value = value.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+        }
+        e.target.value = value;
+    }
+});
+
+// Enviar formulário
+document.getElementById('form-editar-telefone').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{% url "motoristas_telefone" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            mostrarToast(data.message, 'success');
+            fecharModalTelefone();
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            mostrarToast(data.error, 'error');
+        }
+    })
+    .catch(() => {
+        mostrarToast('Erro de conexão', 'error');
+    });
+});
+
+// Funções de toast (copie do template principal se necessário)
+function mostrarToast(mensagem, tipo = 'success') {
+    const toastsExistentes = document.querySelectorAll('.toast');
+    toastsExistentes.forEach(toast => toast.remove());
+    const toast = document.createElement('div');
+    toast.className = `toast ${tipo}`;
+    toast.innerHTML = `<div class="flex items-center gap-2"><i class="bi ${tipo === 'success' ? 'bi-check-circle' : tipo === 'error' ? 'bi-x-circle' : 'bi-exclamation-triangle'}"></i><span>${mensagem}</span></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 5000);
+}
+</script>
+{% endblock %}

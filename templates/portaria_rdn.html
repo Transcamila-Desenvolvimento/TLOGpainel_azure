@@ -1,0 +1,3089 @@
+{% extends 'baserdn.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Portaria - Operação Rondonópolis{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Simplificado -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-sky-600"></span>
+    <h1 class="text-xl md:text-2xl font-semibold text-gray-900">Portaria Rondonópolis</h1>
+  </div>
+</div>
+
+<!-- Abas -->
+<div class="mb-4 border-b border-gray-200">
+  <nav class="-mb-px flex justify-between sm:justify-start sm:space-x-4 md:space-x-8">
+    <button id="tab-agendados" onclick="alternarAba('agendados')"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-sky-500 text-sky-600">
+      <i class="bi bi-clock-history text-sm sm:text-sm md:text-base"></i>
+      <span>Agendados</span>
+      <span
+        class="bg-sky-100 text-sky-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+        data-badge="agendados">{{ total_agendamentos }}</span>
+    </button>
+    <button id="tab-liberados" onclick="alternarAba('liberados')"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+      <i class="bi bi-check-circle text-sm sm:text-sm md:text-base"></i>
+      <span>Liberados</span>
+      <span
+        class="bg-gray-100 text-gray-600 text-xs sm:text-xs font-medium px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full ml-0.5"
+        data-badge="liberados">{{ total_liberados }}</span>
+    </button>
+    <!-- NOVA ABA PARA TELEFONES -->
+    <button id="tab-telefones" onclick="alternarAba('telefones')"
+      class="tab-button py-2 md:py-3 px-1 sm:px-2 md:px-1 border-b-2 font-medium text-sm sm:text-xs md:text-sm flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-1 sm:flex-initial justify-center sm:justify-start border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+      <i class="bi bi-telephone text-sm sm:text-sm md:text-base"></i>
+      <span>Telefones</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Barra de Pesquisa (oculta na aba de telefones) -->
+<div id="barra-pesquisa-portaria" class="mb-3 md:mb-4">
+  <div class="relative">
+    <input type="text" id="pesquisa-portaria" placeholder="Pesquisar por motorista, placa, transportadora..."
+      class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm">
+    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+  </div>
+</div>
+
+<!-- Barra de Pesquisa Telefones (oculta nas outras abas) -->
+<div id="barra-pesquisa-telefones" class="mb-3 md:mb-4 hidden">
+  <div class="relative">
+    <input type="text" id="pesquisa-telefones" placeholder="Pesquisar por nome do motorista..."
+      class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm">
+    <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+  </div>
+</div>
+
+<!-- Botão de Ações (aparece quando há seleção) - Apenas Desktop -->
+<div id="container-acoes" class="hidden mb-3 p-3 bg-sky-50 rounded-lg border border-sky-200">
+  <div class="flex items-center justify-between">
+    <div>
+      <span class="text-sm font-medium text-sky-700" id="texto-selecionados">1 agendamento selecionado</span>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="verDetalhesSelecionado()"
+        class="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm px-3 py-1.5 rounded-md border border-gray-300 transition-colors duration-200">
+        <i class="bi bi-eye"></i> Ver Detalhes
+      </button>
+      <button onclick="chamarMotoristaSelecionado()"
+        class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
+        <i class="bi bi-megaphone"></i> Chamar Motorista
+      </button>
+      <button id="btn-confirmar-chegada-desktop" onclick="confirmarChegadaSelecionado()"
+        class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
+        <i class="bi bi-check-lg"></i> Confirmar Chegada
+      </button>
+      <button id="btn-confirmar-armazem-desktop" onclick="confirmarArmazemSelecionado()" style="display: none;"
+        class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
+        <i class="bi bi-building-check"></i> Confirmar Armazém
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Conteúdo das Abas -->
+
+<!-- Aba Agendados -->
+<div id="conteudo-agendados" class="tab-content">
+  <!-- Desktop: Tabela -->
+  <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+    <table class="min-w-full text-[14px]">
+      <thead>
+        <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-2 px-3 text-left font-medium w-8"></th>
+          <th class="py-2 px-3 text-left font-medium">Motorista</th>
+          <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
+          <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
+          <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+          <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-agendamentos">
+        {% for agendamento in agendamentos %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50 agendamento-row" id="agendamento-{{ agendamento.id }}"
+          data-motorista="{{ agendamento.motorista.nome|lower }}" data-placa="{{ agendamento.placa_veiculo|lower }}"
+          data-transportadora="{{ agendamento.transportadora.nome|lower }}">
+          <td class="py-2 px-3">
+            <input type="checkbox" name="agendamento_selecionado" value="{{ agendamento.id }}"
+              class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+          </td>
+          <td class="py-2 px-3 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+              {{ agendamento.motorista.nome }}
+              {% if agendamento.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-2 px-3">
+            <div class="flex flex-col">
+              {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+              <span
+                class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 inline-block w-fit">ENCAIXE</span>
+              {% else %}
+              <span class="text-gray-800">{{ agendamento.horario_agendado|time:"H:i" }}</span>
+              {% endif %}
+              {% if agendamento.horario_chegada %}
+              <span class="text-xs text-emerald-600">Chegou: {{ agendamento.horario_chegada|time:"H:i" }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-2 px-3 font-mono text-gray-800">{{ agendamento.placa_veiculo }}</td>
+          <td class="py-2 px-3">{{ agendamento.transportadora.nome }}</td>
+          <td class="py-2 px-3">{{ agendamento.get_tipo_veiculo_display }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="py-4 text-center text-gray-400 text-[14px]">Nenhum agendamento para hoje</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile: Cards -->
+  <div class="md:hidden space-y-2.5">
+    {% for agendamento in agendamentos %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row"
+      id="agendamento-card-{{ agendamento.id }}" data-motorista="{{ agendamento.motorista.nome|lower }}"
+      data-placa="{{ agendamento.placa_veiculo|lower }}"
+      data-transportadora="{{ agendamento.transportadora.nome|lower }}">
+      <div class="mb-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+          <h3 class="font-semibold text-gray-900 text-sm">{{ agendamento.motorista.nome }}</h3>
+          {% if agendamento.tipo == 'coleta' %}
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+          {% else %}
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+          {% endif %}
+        </div>
+        <div class="space-y-1 text-xs text-gray-600">
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-clock text-gray-400 text-xs"></i>
+            {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+            <span>{{ agendamento.horario_agendado|time:"H:i" }}</span>
+            {% endif %}
+            {% if agendamento.horario_chegada %}
+            <span class="text-emerald-600">• Chegou: {{ agendamento.horario_chegada|time:"H:i" }}</span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-truck text-gray-400 text-xs"></i>
+            <span class="font-mono">{{ agendamento.placa_veiculo }}</span>
+            <span class="text-gray-500">•</span>
+            <span>{{ agendamento.get_tipo_veiculo_display }}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <i class="bi bi-building text-gray-400 text-xs"></i>
+            <span class="truncate">{{ agendamento.transportadora.nome }}</span>
+          </div>
+          <div class="mt-5 p-2 bg-gray-50 border border-gray-200 rounded-md">
+            <div class="flex items-start gap-1.5">
+              <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
+              <div class="flex-1">
+                <span class="text-xs font-medium text-gray-500 block mb-1">Documentos:</span>
+                <span class="text-xs text-gray-700 break-words">
+                  {% if agendamento.coluna_ad %}
+                  {{ agendamento.coluna_ad }}
+                  {% else %}
+                  <span class="text-gray-400 italic">Nenhum documento informado</span>
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+        <button onclick="carregarDetalhesAgendamento('{{ agendamento.id }}', 'detalhes')"
+          class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+          <i class="bi bi-eye"></i>
+          Ver Detalhes
+        </button>
+        {% if agendamento.motorista.telefone %}
+        <button onclick="chamarMotoristaIndividual('{{ agendamento.id }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-megaphone"></i>
+          Chamar Motorista
+        </button>
+        {% endif %}
+        <button onclick="carregarDetalhesAgendamento('{{ agendamento.id }}', 'confirmacao')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-check-lg"></i>
+          Confirmar Chegada
+        </button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+      <p class="text-gray-400 text-sm">Nenhum agendamento para hoje</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Aba Liberados -->
+<div id="conteudo-liberados" class="tab-content hidden">
+  <!-- Desktop: Tabela -->
+  <div class="hidden md:block bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+    <table class="min-w-full text-[14px]">
+      <thead>
+        <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-2 px-3 text-left font-medium w-8"></th>
+          <th class="py-2 px-3 text-left font-medium">Motorista</th>
+          <th class="py-2 px-3 text-left font-medium">Horário Agendado</th>
+          <th class="py-2 px-3 text-left font-medium">Chegada</th>
+          <th class="py-2 px-3 text-left font-medium">Placa do Veículo</th>
+          <th class="py-2 px-3 text-left font-medium">Tipo de Veículo</th>
+          <th class="py-2 px-3 text-left font-medium">Transportadora</th>
+          <th class="py-2 px-3 text-left font-medium">Entrada Armazém</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-liberados">
+        {% for liberado in liberados %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50 liberado-row" id="liberado-{{ liberado.id }}"
+          data-motorista="{{ liberado.motorista.nome|lower }}" data-placa="{{ liberado.placa_veiculo|lower }}"
+          data-transportadora="{{ liberado.transportadora.nome|lower }}"
+          data-armazem="{% if liberado.portaria_chegada_armazem %}1{% else %}0{% endif %}">
+          <td class="py-2 px-3">
+            <input type="checkbox" name="agendamento_selecionado" value="{{ liberado.id }}"
+              class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+          </td>
+          <td class="py-2 px-3 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+              {{ liberado.motorista.nome }}
+              {% if liberado.tipo == 'coleta' %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>
+              {% else %}
+              <span
+                class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="py-2 px-3 text-gray-800">
+            {% if liberado.horario_agendado|time:"H:i" == "00:00" %}
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+            {{ liberado.horario_agendado|time:"H:i" }}
+            {% endif %}
+          </td>
+          <td class="py-2 px-3 text-emerald-600">
+            {% if liberado.portaria_liberacao %}
+            {% timezone "America/Cuiaba" %}
+            {{ liberado.portaria_liberacao|date:"d/m/Y H:i" }}
+            {% endtimezone %}
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td class="py-2 px-3 font-mono text-gray-800">{{ liberado.placa_veiculo }}</td>
+          <td class="py-2 px-3">{{ liberado.get_tipo_veiculo_display }}</td>
+          <td class="py-2 px-3">{{ liberado.transportadora.nome }}</td>
+          <td class="py-2 px-3">
+            {% if liberado.portaria_chegada_armazem %}
+            <div class="flex items-center gap-1.5 text-emerald-600">
+              <i class="bi bi-building-check text-sm"></i>
+              <span class="text-xs">
+                {% timezone "America/Cuiaba" %}
+                {{ liberado.portaria_chegada_armazem|date:"d/m H:i" }}
+                {% endtimezone %}
+              </span>
+            </div>
+            {% else %}
+            <span class="text-gray-400 text-xs">-</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile: Cards -->
+  <div class="md:hidden space-y-2">
+    {% for liberado in liberados %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 liberado-row"
+      id="liberado-card-{{ liberado.id }}" data-motorista="{{ liberado.motorista.nome|lower }}"
+      data-placa="{{ liberado.placa_veiculo|lower }}" data-transportadora="{{ liberado.transportadora.nome|lower }}">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+        <h3 class="font-semibold text-gray-900 text-sm">{{ liberado.motorista.nome }}</h3>
+        {% if liberado.tipo == 'coleta' %}
+        <span
+          class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>
+        {% else %}
+        <span
+          class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>
+        {% endif %}
+      </div>
+      <div class="space-y-1.5 text-xs text-gray-600">
+        <div class="flex items-center gap-2">
+          <i class="bi bi-clock text-gray-400"></i>
+          <span>Agendado:
+            {% if liberado.horario_agendado|time:"H:i" == "00:00" %}
+            <span
+              class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+            {% else %}
+            {{ liberado.horario_agendado|time:"H:i" }}
+            {% endif %}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="bi bi-check-circle text-emerald-600"></i>
+          <span class="text-emerald-600">
+            {% if liberado.portaria_liberacao %}
+            {% timezone "America/Cuiaba" %}
+            Liberado: {{ liberado.portaria_liberacao|date:"d/m/Y H:i" }}
+            {% endtimezone %}
+            {% else %}
+            -
+            {% endif %}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="bi bi-truck text-gray-400"></i>
+          <span class="font-mono">{{ liberado.placa_veiculo }}</span>
+          <span class="text-gray-500">•</span>
+          <span>{{ liberado.get_tipo_veiculo_display }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i class="bi bi-building text-gray-400"></i>
+          <span>{{ liberado.transportadora.nome }}</span>
+        </div>
+        <div class="mt-5 p-2 bg-gray-50 border border-gray-200 rounded-md">
+          <div class="flex items-start gap-1.5">
+            <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
+            <div class="flex-1">
+              <span class="text-xs font-medium text-gray-500 block mb-1">Documentos:</span>
+              <span class="text-xs text-gray-700 break-words">
+                {% if liberado.coluna_ad %}
+                {{ liberado.coluna_ad }}
+                {% else %}
+                <span class="text-gray-400 italic">Nenhum documento informado</span>
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+        <button onclick="carregarDetalhesAgendamento('{{ liberado.id }}', 'detalhes')"
+          class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+          <i class="bi bi-eye"></i>
+          Ver Detalhes
+        </button>
+        {% if liberado.motorista.telefone %}
+        <button onclick="chamarMotoristaIndividual('{{ liberado.id }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-megaphone"></i>
+          Chamar Motorista
+        </button>
+        {% endif %}
+        {% if not liberado.portaria_chegada_armazem %}
+        <button onclick="abrirModalConfirmarArmazem('{{ liberado.id }}', '{{ liberado.placa_veiculo|escapejs }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-building-check"></i>
+          Confirmar Armazém
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+      <p class="text-gray-400 text-sm">Nenhum veículo liberado hoje</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- NOVA ABA TELEFONES -->
+<div id="conteudo-telefones" class="tab-content hidden">
+  <div class="bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+    <div class="p-3 md:p-4 border-b border-gray-200 bg-gray-50">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+        <div>
+          <h2 class="text-base md:text-lg font-medium text-gray-700">Cadastro de Telefones dos Motoristas</h2>
+          <p class="text-xs md:text-sm text-gray-600 mt-1">Atualize os números de telefone para habilitar a função de
+            chamada</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop: Tabela -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="min-w-full text-[14px]">
+        <thead>
+          <tr class="text-gray-800 text-xs border-b border-gray-200 uppercase tracking-wide">
+            <th class="py-3 px-4 text-left font-medium">Motorista</th>
+            <th class="py-3 px-4 text-left font-medium">Telefone Atual</th>
+            <th class="py-3 px-4 text-left font-medium">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-telefones">
+          {% for motorista in motoristas %}
+          <tr class="motorista-row border-b border-gray-100 hover:bg-gray-50" data-nome="{{ motorista.nome|lower }}"
+            data-telefone="{{ motorista.telefone|default:''|lower }}">
+            <td class="py-3 px-4 font-medium text-gray-900">
+              {{ motorista.nome }}
+            </td>
+            <td class="py-3 px-4">
+              {% if motorista.telefone %}
+              <span class="text-emerald-600 font-medium">{{ motorista.telefone }}</span>
+              {% else %}
+              <span class="text-gray-400">Não cadastrado</span>
+              {% endif %}
+            </td>
+            <td class="py-3 px-4">
+              <button
+                onclick="abrirModalEditarTelefone('{{ motorista.id|escapejs }}', '{{ motorista.nome|escapejs }}', '{{ motorista.telefone|default:None|escapejs }}')"
+                class="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-1.5 rounded-md transition-colors duration-200">
+                <i class="bi bi-pencil"></i>
+                Editar Telefone
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="3" class="py-4 text-center text-gray-400">Nenhum motorista cadastrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile: Cards -->
+    <div class="md:hidden space-y-3 p-3" id="tabela-telefones-mobile">
+      {% for motorista in motoristas %}
+      <div class="motorista-row bg-white rounded-lg border border-gray-200 p-4" data-nome="{{ motorista.nome|lower }}"
+        data-telefone="{{ motorista.telefone|default:''|lower }}">
+        <div class="mb-3">
+          <h3 class="font-semibold text-gray-900 text-sm mb-2">{{ motorista.nome }}</h3>
+          <div class="flex items-center gap-2">
+            <i class="bi bi-telephone text-gray-400"></i>
+            {% if motorista.telefone %}
+            <span class="text-emerald-600 font-medium text-sm">{{ motorista.telefone }}</span>
+            {% else %}
+            <span class="text-gray-400 text-sm">Não cadastrado</span>
+            {% endif %}
+          </div>
+        </div>
+        <button
+          onclick="abrirModalEditarTelefone('{{ motorista.id|escapejs }}', '{{ motorista.nome|escapejs }}', '{{ motorista.telefone|default:None|escapejs }}')"
+          class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm px-3 py-2 rounded-md transition-colors duration-200">
+          <i class="bi bi-pencil"></i>
+          Editar Telefone
+        </button>
+      </div>
+      {% empty %}
+      <div class="bg-white rounded-lg border border-gray-200 p-8 text-center">
+        <p class="text-gray-400 text-sm">Nenhum motorista cadastrado</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Detalhes e Confirmação -->
+<div id="modal-formulario"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto max-h-[95vh] overflow-y-auto">
+    <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+      <h3 id="titulo-modal" class="text-lg md:text-xl font-semibold text-gray-900"></h3>
+      <button onclick="fecharModal()" class="text-gray-400 hover:text-gray-500 transition-colors duration-200">
+        <i class="bi bi-x-lg text-xl md:text-2xl"></i>
+      </button>
+    </div>
+
+    <div id="conteudo-detalhes" class="hidden">
+      <div class="p-4 md:p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Motorista</label>
+            <p id="detalhe-motorista" class="text-gray-900 font-medium text-base md:text-lg"></p>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Horário Agendado</label>
+            <p id="detalhe-horario" class="text-gray-900 text-base md:text-lg"></p>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Tipo</label>
+            <p id="detalhe-tipo" class="text-gray-900 text-sm md:text-base"></p>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Placa do Veículo</label>
+            <p id="detalhe-placa" class="font-mono text-gray-900 text-base md:text-lg"></p>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Tipo de Veículo</label>
+            <p id="detalhe-tipo-veiculo" class="text-gray-900 text-base md:text-lg"></p>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Transportadora</label>
+            <p id="detalhe-transportadora" class="text-gray-900 text-base md:text-lg"></p>
+          </div>
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-1">Peso</label>
+            <p id="detalhe-peso" class="text-gray-900 text-base md:text-lg"></p>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-4 border-t border-gray-200">
+          <button onclick="fecharModal()"
+            class="bg-gray-500 hover:bg-gray-600 text-white px-4 md:px-6 py-2 text-sm md:text-base rounded-md transition-colors duration-200">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="conteudo-confirmacao" class="hidden">
+      <div class="p-4 md:p-6">
+        <div class="mb-4 md:mb-6">
+          <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para confirmar a
+            chegada</p>
+
+          <div class="swipe-container mb-6 md:mb-8">
+            <div
+              class="swipe-track bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
+              <div
+                class="swipe-thumb absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10 transition-all duration-200 hover:shadow-lg">
+                <i class="bi bi-arrow-right text-sky-600 text-base md:text-lg"></i>
+              </div>
+              <div class="swipe-text absolute inset-0 flex items-center justify-center">
+                <span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>
+              </div>
+              <div
+                class="swipe-progress absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left transition-transform duration-300">
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 p-3 md:p-4 rounded-lg mb-3 md:mb-4">
+            <label class="block text-xs md:text-sm font-medium text-gray-500 mb-2">Horário de Chegada
+              (Rondonópolis)</label>
+            <div class="w-full px-2 md:px-3 py-3 md:py-4 border-2 border-sky-500 rounded-md bg-white text-center">
+              <div id="confirmacao-horario"
+                class="text-gray-900 text-2xl md:text-3xl font-bold font-mono tracking-wider">
+                {{ agora|date:'H:i:s' }}
+              </div>
+              <div class="text-xs text-gray-500 mt-1">Atualiza automaticamente</div>
+            </div>
+            <input type="hidden" id="confirmacao-horario-hidden" value="{{ agora|date:'H:i' }}">
+          </div>
+        </div>
+
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Motorista</p>
+            <p id="confirmacao-motorista" class="text-gray-900 font-medium"></p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Placa do Veículo</p>
+            <p id="confirmacao-placa" class="font-mono text-gray-900 font-medium"></p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Tipo de Veículo</p>
+            <p id="confirmacao-tipo-veiculo" class="text-gray-900 font-medium"></p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Transportadora</p>
+            <p id="confirmacao-transportadora" class="text-gray-900 font-medium"></p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Tipo de Serviço</p>
+            <p id="confirmacao-tipo" class="text-gray-900 font-medium"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+
+<!-- Modal para confirmar chegada no armazém -->
+<div id="modal-confirmar-armazem"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[70] p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto max-h-[95vh] overflow-y-auto">
+    <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900">Confirmar Entrada no Armazém</h3>
+      <button onclick="fecharModalConfirmarArmazem()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-xl"></i>
+      </button>
+    </div>
+
+    <div class="p-4 md:p-6">
+      <div class="mb-4 md:mb-6">
+        <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para confirmar a
+          entrada no armazém</p>
+
+        <div class="swipe-container mb-6 md:mb-8">
+          <div
+            class="swipe-track-armazem bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
+            <div
+              class="swipe-thumb-armazem absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10 transition-all duration-200 hover:shadow-lg">
+              <i class="bi bi-arrow-right text-sky-600 text-base md:text-lg"></i>
+            </div>
+            <div class="swipe-text-armazem absolute inset-0 flex items-center justify-center">
+              <span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>
+            </div>
+            <div
+              class="swipe-progress-armazem absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left transition-transform duration-300">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 p-3 md:p-4 rounded-lg mb-3 md:mb-4">
+          <label class="block text-xs md:text-sm font-medium text-gray-500 mb-2">Horário de Entrada no Armazém</label>
+          <div class="w-full px-2 md:px-3 py-3 md:py-4 border-2 border-sky-500 rounded-md bg-white text-center">
+            <div id="relogio-armazem" class="text-gray-900 text-2xl md:text-3xl font-bold font-mono tracking-wider">
+              --:--:--
+            </div>
+            <div class="text-xs text-gray-500 mt-1">Atualiza automaticamente</div>
+          </div>
+          <input type="hidden" id="relogio-armazem-hidden">
+        </div>
+      </div>
+
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Motorista</p>
+          <p id="armazem-motorista" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Placa do Veículo</p>
+          <p id="armazem-placa" class="font-mono text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Tipo de Veículo</p>
+          <p id="armazem-tipo-veiculo" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Transportadora</p>
+          <p id="armazem-transportadora" class="text-gray-900 font-medium"></p>
+        </div>
+        <div>
+          <p class="font-medium text-gray-500 mb-1">Tipo de Serviço</p>
+          <p id="armazem-tipo" class="text-gray-900 font-medium"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para editar telefone -->
+<div id="modal-editar-telefone"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-2 md:p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto max-h-[95vh] overflow-y-auto">
+    <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900">Editar Telefone</h3>
+      <button onclick="fecharModalTelefone()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg text-xl md:text-2xl"></i>
+      </button>
+    </div>
+
+    <div class="p-4 md:p-6">
+      <form id="form-editar-telefone">
+        {% csrf_token %}
+        <input type="hidden" id="motorista-id" name="motorista_id">
+
+        <div class="mb-4">
+          <label class="block text-xs md:text-sm font-medium text-gray-700 mb-2">Motorista</label>
+          <p id="motorista-nome" class="text-gray-900 font-medium bg-gray-50 p-3 rounded-md text-sm md:text-base"></p>
+        </div>
+
+        <div class="mb-6">
+          <label for="telefone-input" class="block text-xs md:text-sm font-medium text-gray-700 mb-2">Telefone</label>
+          <input type="text" id="telefone-input" name="telefone" placeholder="Ex: (43) 99999-9999"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-sm md:text-base">
+          <p class="text-xs text-gray-500 mt-1">Formato: (DDD) 9XXXX-XXXX</p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
+          <button type="button" onclick="fecharModalTelefone()"
+            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors text-sm md:text-base">
+            Cancelar
+          </button>
+          <button type="submit"
+            class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md flex items-center justify-center gap-2 transition-colors text-sm md:text-base">
+            <i class="bi bi-check-lg"></i>
+            Salvar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para confirmar chamada de motorista (apenas mobile) -->
+<div id="modal-chamar-motorista"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-[60] p-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto">
+    <div class="flex justify-between items-center p-4 md:p-6 border-b border-gray-200">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900">Chamar Motorista</h3>
+      <button onclick="fecharModalChamarMotorista()"
+        class="text-gray-400 hover:text-gray-500 transition-colors duration-200">
+        <i class="bi bi-x-lg text-xl md:text-2xl"></i>
+      </button>
+    </div>
+
+    <div class="p-4 md:p-6">
+      <div class="mb-4 md:mb-6">
+        <p class="text-xs md:text-sm text-gray-600 mb-4 md:mb-6 text-center">Arraste para o lado para chamar o motorista
+        </p>
+
+        <div class="swipe-container-chamar mb-6 md:mb-8">
+          <div
+            class="swipe-track-chamar bg-gray-100 rounded-full h-10 md:h-12 relative overflow-hidden border border-gray-300">
+            <div
+              class="swipe-thumb-chamar absolute left-1 top-1 h-8 w-8 md:h-10 md:w-10 bg-white rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing shadow-md border border-gray-200 z-10 transition-all duration-200 hover:shadow-lg">
+              <i class="bi bi-arrow-right text-sky-600 text-base md:text-lg"></i>
+            </div>
+            <div class="swipe-text-chamar absolute inset-0 flex items-center justify-center">
+              <span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para chamar</span>
+            </div>
+            <div
+              class="swipe-progress-chamar absolute inset-0 bg-gradient-to-r from-sky-500 to-sky-600 rounded-full scale-x-0 origin-left transition-transform duration-300">
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="grid grid-cols-1 gap-3 md:gap-4 text-xs md:text-sm bg-sky-50 p-3 md:p-4 rounded-lg border border-sky-100">
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Motorista</p>
+            <p id="chamar-motorista-nome" class="text-gray-900 font-medium"></p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Placa do Veículo</p>
+            <p id="chamar-motorista-placa" class="font-mono text-gray-900 font-medium"></p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-500 mb-1">Tipo de Serviço</p>
+            <p id="chamar-motorista-tipo" class="text-gray-900 font-medium"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .swipe-container {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+  }
+
+  .swipe-track,
+  .swipe-track-chamar,
+  .swipe-track-armazem {
+    position: relative;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+  }
+
+  .swipe-track.success,
+  .swipe-track-chamar.success,
+  .swipe-track-armazem.success {
+    background: #f0f9ff;
+    border-color: #0ea5e9;
+  }
+
+  .swipe-thumb,
+  .swipe-thumb-chamar,
+  .swipe-thumb-armazem {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 10;
+  }
+
+  .swipe-thumb.dragging,
+  .swipe-thumb-chamar.dragging,
+  .swipe-thumb-armazem.dragging {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  }
+
+  .swipe-thumb.success,
+  .swipe-thumb-chamar.success,
+  .swipe-thumb-armazem.success {
+    background: #10b981;
+    transform: scale(1);
+  }
+
+  .swipe-thumb.success i,
+  .swipe-thumb-chamar.success i,
+  .swipe-thumb-armazem.success i {
+    color: white;
+  }
+
+  .swipe-text,
+  .swipe-text-chamar,
+  .swipe-text-armazem {
+    transition: all 0.3s ease;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .swipe-progress,
+  .swipe-progress-chamar,
+  .swipe-progress-armazem {
+    transition: transform 0.3s ease;
+  }
+
+  .swipe-thumb:hover,
+  .swipe-thumb-chamar:hover,
+  .swipe-thumb-armazem:hover {
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+    transform: translateY(-1px);
+  }
+
+  /* Estilos para o swipe de chamar motorista */
+  .swipe-container-chamar {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+  }
+
+  .swipe-track-chamar {
+    position: relative;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+  }
+
+  .swipe-track-chamar.success {
+    background: #f0f9ff;
+    border-color: #0ea5e9;
+  }
+
+  .swipe-thumb-chamar {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 10;
+  }
+
+  .swipe-thumb-chamar.dragging {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+  }
+
+  .swipe-thumb-chamar.success {
+    background: #10b981;
+    transform: scale(1);
+  }
+
+  .swipe-thumb-chamar.success i {
+    color: white;
+  }
+
+  .swipe-text-chamar {
+    transition: all 0.3s ease;
+    z-index: 5;
+  }
+
+  .swipe-progress-chamar {
+    transition: transform 0.3s ease;
+  }
+
+  .swipe-thumb-chamar:hover {
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+    transform: translateY(-1px);
+  }
+
+  @keyframes checkmark {
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .check-animation {
+    animation: checkmark 0.5s ease-out;
+  }
+
+  /* Animações para a tela de loading */
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+
+  @keyframes progress-loading {
+    0% {
+      width: 0%;
+    }
+
+    50% {
+      width: 60%;
+    }
+
+    100% {
+      width: 100%;
+    }
+  }
+
+  @keyframes fade-in-scale {
+    0% {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  .animate-progress {
+    animation: progress 2s ease-in-out infinite;
+  }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+  }
+
+  .toast.show {
+    transform: translateX(0);
+  }
+
+  .toast.success {
+    background-color: #10b981;
+  }
+
+  .toast.error {
+    background-color: #ef4444;
+  }
+
+  .toast.warning {
+    background-color: #f59e0b;
+  }
+
+  /* Estilos mobile - Ajustes sutis de espaçamento e zoom */
+  @media (max-width: 768px) {
+
+    /* Reduzir um pouco o padding do conteúdo principal */
+    main {
+      padding-left: 0.75rem !important;
+      padding-right: 0.75rem !important;
+      padding-top: 0.75rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento entre cards */
+    .tab-content>div.space-y-2,
+    .tab-content>div.space-y-3,
+    .tab-content>div.space-y-4 {
+      gap: 0.625rem !important;
+    }
+
+    /* Reduzir um pouco o padding dos cards mobile */
+    .tab-content .bg-white.rounded-lg.shadow-sm {
+      padding: 0.875rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento do cabeçalho */
+    .flex.flex-col.md\\:flex-row.items-start.justify-between {
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento das abas */
+    .mb-4.border-b.border-gray-200,
+    .mb-2.md\\:mb-4.border-b {
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Reduzir um pouco o espaçamento da barra de pesquisa */
+    #barra-pesquisa-portaria {
+      margin-bottom: 0.75rem !important;
+    }
+
+    /* Aumentar levemente o tamanho da fonte (zoom sutil) */
+    .tab-content .text-xs {
+      font-size: 0.8125rem !important;
+      /* 13px ao invés de 12px */
+    }
+
+    .tab-content .text-sm {
+      font-size: 0.9375rem !important;
+      /* 15px ao invés de 14px */
+    }
+
+    .tab-content h3 {
+      font-size: 1.0625rem !important;
+      /* 17px */
+    }
+
+    /* Aumentar levemente o tamanho dos ícones */
+    .tab-content .bi {
+      font-size: 1.0625rem !important;
+    }
+
+    /* Aumentar fonte das abas no mobile */
+    .tab-button {
+      font-size: 0.9375rem !important;
+      /* 15px */
+    }
+
+    .tab-button span:not(.bg-sky-100):not(.bg-gray-100) {
+      font-size: 0.9375rem !important;
+      /* 15px para o texto das abas */
+    }
+
+    .tab-button .bi {
+      font-size: 1rem !important;
+      /* 16px para ícones das abas */
+    }
+
+    .toast {
+      top: 10px;
+      right: 10px;
+      left: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    /* Garantir que os modais não ultrapassem a tela */
+    #modal-formulario>div,
+    #modal-editar-telefone>div {
+      margin: 0.5rem !important;
+      max-height: calc(100vh - 1rem);
+    }
+
+    /* Botões nos cards mobile */
+    .tab-content button {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
+</style>
+
+<script>
+  let agendamentoSelecionado = null;
+  let abaAtual = 'agendados';
+  let agendamentoSelecionadoId = null;
+  let isDragging = false;
+  let startX = 0;
+  let currentX = 0;
+  let trackWidth = 0;
+  let thumbWidth = 0;
+
+  // Função para lidar com mudanças nos checkboxes (usada com event delegation)
+  function handleCheckboxChange(event) {
+    if (event.target.classList.contains('agendamento-checkbox')) {
+      if (event.target.checked) {
+        // Desmarcar todos os outros checkboxes
+        document.querySelectorAll('.agendamento-checkbox').forEach(otherCb => {
+          if (otherCb !== event.target) {
+            otherCb.checked = false;
+          }
+        });
+        agendamentoSelecionadoId = event.target.value;
+      } else {
+        agendamentoSelecionadoId = null;
+      }
+      atualizarContainerAcoes();
+    }
+  }
+  let motoristaEditando = null;
+
+  function validarHorario(horario) {
+    const horarioRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!horarioRegex.test(horario)) return { valido: false, erro: 'Formato inválido. Use HH:MM' };
+    const [horas, minutos] = horario.split(':').map(Number);
+    const agora = new Date();
+    const horarioInserido = new Date();
+    horarioInserido.setHours(horas, minutos, 0, 0);
+    const limiteFuturo = new Date(agora.getTime() + 2 * 60 * 60 * 1000);
+    if (horarioInserido > limiteFuturo) return { valido: false, erro: 'Horário não pode ser mais de 2 horas no futuro' };
+    return { valido: true };
+  }
+
+  function mostrarToast(mensagem, tipo = 'success') {
+    const toastsExistentes = document.querySelectorAll('.toast');
+    toastsExistentes.forEach(toast => toast.remove());
+    const toast = document.createElement('div');
+    toast.className = `toast ${tipo}`;
+    toast.innerHTML = `<div class="flex items-center gap-2"><i class="bi ${tipo === 'success' ? 'bi-check-circle' : tipo === 'error' ? 'bi-x-circle' : 'bi-exclamation-triangle'}"></i><span>${mensagem}</span></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 5000);
+  }
+
+  function mostrarMensagemSucesso(m) { mostrarToast(m, 'success'); }
+  function mostrarMensagemErro(m) { mostrarToast(m, 'error'); }
+  function mostrarMensagemAviso(m) { mostrarToast(m, 'warning'); }
+
+  function alternarAba(aba) {
+    abaAtual = aba;
+    // Remover classes ativas de todas as abas
+    document.querySelectorAll('.tab-button').forEach(tab => {
+      tab.classList.remove('border-sky-500', 'text-sky-600');
+      tab.classList.add('border-transparent', 'text-gray-500');
+      // Garantir que as classes hover não interfiram
+      tab.classList.remove('hover:border-sky-300');
+    });
+
+    // Adicionar classes ativas na aba selecionada
+    const abaAtiva = document.getElementById(`tab-${aba}`);
+    if (abaAtiva) {
+      abaAtiva.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300');
+      abaAtiva.classList.add('border-sky-500', 'text-sky-600');
+    }
+
+    // Alternar conteúdo
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+    document.getElementById(`conteudo-${aba}`).classList.remove('hidden');
+
+    // Alternar filtros
+    const pesquisaPortaria = document.getElementById('barra-pesquisa-portaria');
+    const pesquisaTelefones = document.getElementById('barra-pesquisa-telefones');
+
+    if (aba === 'telefones') {
+      if (pesquisaPortaria) pesquisaPortaria.classList.add('hidden');
+      if (pesquisaTelefones) pesquisaTelefones.classList.remove('hidden');
+    } else {
+      if (pesquisaPortaria) pesquisaPortaria.classList.remove('hidden');
+      if (pesquisaTelefones) pesquisaTelefones.classList.add('hidden');
+    }
+
+    // Mostrar/ocultar barra de pesquisa
+    const barraPesquisa = document.getElementById('barra-pesquisa-portaria');
+    const barraPesquisaTelefones = document.getElementById('barra-pesquisa-telefones');
+
+    if (aba === 'telefones') {
+      if (barraPesquisa) barraPesquisa.classList.add('hidden');
+      if (barraPesquisaTelefones) barraPesquisaTelefones.classList.remove('hidden');
+    } else {
+      if (barraPesquisa) barraPesquisa.classList.remove('hidden');
+      if (barraPesquisaTelefones) barraPesquisaTelefones.classList.add('hidden');
+    }
+
+    // Limpar seleção ao trocar de aba
+    agendamentoSelecionadoId = null;
+    document.querySelectorAll('.agendamento-checkbox').forEach(cb => {
+      cb.checked = false;
+    });
+    atualizarContainerAcoes();
+
+    // Garantir que o estado está sincronizado após trocar de aba
+    setTimeout(() => {
+      if (agendamentoSelecionadoId) {
+        const checkbox = document.querySelector(`.agendamento-checkbox[value="${agendamentoSelecionadoId}"]`);
+        if (!checkbox || !checkbox.checked) {
+          agendamentoSelecionadoId = null;
+          atualizarContainerAcoes();
+        }
+      }
+    }, 100);
+
+    // Aplicar filtro novamente se houver pesquisa
+    const pesquisaInput = document.getElementById('pesquisa-portaria');
+    if (pesquisaInput && pesquisaInput.value) {
+      filtrarPortaria(pesquisaInput.value);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('tab-agendados').addEventListener('click', () => alternarAba('agendados'));
+    document.getElementById('tab-liberados').addEventListener('click', () => alternarAba('liberados'));
+    document.getElementById('tab-telefones').addEventListener('click', () => alternarAba('telefones'));
+
+    // Restaurar aba ativa se houver (para retornos de confirmação)
+    const abaSalva = sessionStorage.getItem('portaria_aba_ativa');
+    if (abaSalva) {
+      alternarAba(abaSalva);
+      sessionStorage.removeItem('portaria_aba_ativa');
+    }
+
+    // Checkbox desktop - usar event delegation para evitar problemas com atualizações dinâmicas
+    const tbodyAgendamentos = document.getElementById('tabela-agendamentos');
+    if (tbodyAgendamentos) {
+      tbodyAgendamentos.addEventListener('change', handleCheckboxChange);
+    }
+    const tbodyLiberados = document.getElementById('tabela-liberados');
+    if (tbodyLiberados) {
+      tbodyLiberados.addEventListener('change', handleCheckboxChange);
+    }
+
+    // Barra de pesquisa
+    const pesquisaInput = document.getElementById('pesquisa-portaria');
+    if (pesquisaInput) {
+      pesquisaInput.addEventListener('input', function (e) {
+        filtrarPortaria(e.target.value);
+      });
+    }
+
+    // Formatar telefone enquanto digita
+    const telefoneInput = document.getElementById('telefone-input');
+    if (telefoneInput) {
+      telefoneInput.addEventListener('input', function (e) {
+        let value = e.target.value.replace(/\D/g, '');
+
+        if (value.length <= 11) {
+          if (value.length <= 2) {
+            value = value.replace(/^(\d{0,2})/, '($1');
+          } else if (value.length <= 6) {
+            value = value.replace(/^(\d{2})(\d{0,4})/, '($1) $2');
+          } else if (value.length <= 10) {
+            value = value.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+          } else {
+            value = value.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3');
+          }
+          e.target.value = value;
+        }
+      });
+    }
+
+    // Enviar formulário de telefone
+    const formEditarTelefone = document.getElementById('form-editar-telefone');
+    if (formEditarTelefone) {
+      formEditarTelefone.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+
+        fetch('{% url "rondonopolis:motoristas_telefone" %}', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              mostrarToast(data.message, 'success');
+              fecharModalTelefone();
+              // Recarregar a página para atualizar os telefones
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
+            } else {
+              mostrarToast(data.error, 'error');
+            }
+          })
+          .catch(() => {
+            mostrarToast('Erro de conexão', 'error');
+          });
+      });
+    }
+  });
+
+  function atualizarContainerAcoes() {
+    const container = document.getElementById('container-acoes');
+    // Só mostrar em desktop (md ou maior) quando houver seleção
+    const isDesktop = window.innerWidth >= 768;
+    if (agendamentoSelecionadoId && isDesktop) {
+      container.classList.remove('hidden');
+
+      // Controlar visibilidade dos botões baseado na aba ativa
+      const btnConfirmarChegada = document.getElementById('btn-confirmar-chegada-desktop');
+      const btnConfirmarArmazem = document.getElementById('btn-confirmar-armazem-desktop');
+
+      if (abaAtual === 'liberados') {
+        // Na aba Liberados, verificar se o veículo já foi confirmado no armazém
+        const row = document.getElementById(`liberado-${agendamentoSelecionadoId}`);
+        let jaConfirmado = false;
+
+        if (row) {
+          // Verificar se a linha tem o timestamp de confirmação
+          const confirmacaoCell = row.querySelector('td:nth-child(8)'); // Coluna de Confirmação Armazém
+          if (confirmacaoCell) {
+            const temTimestamp = confirmacaoCell.querySelector('.text-emerald-600');
+            jaConfirmado = temTimestamp !== null;
+          }
+        }
+
+        // Esconder botão de confirmar chegada
+        if (btnConfirmarChegada) btnConfirmarChegada.style.display = 'none';
+
+        // Mostrar botão de confirmar armazém apenas se não foi confirmado
+        if (btnConfirmarArmazem) {
+          btnConfirmarArmazem.style.display = jaConfirmado ? 'none' : 'flex';
+        }
+      } else {
+        // Na aba Agendados, mostrar botão de confirmar chegada
+        if (btnConfirmarChegada) btnConfirmarChegada.style.display = 'flex';
+        if (btnConfirmarArmazem) btnConfirmarArmazem.style.display = 'none';
+      }
+    } else {
+      container.classList.add('hidden');
+    }
+  }
+
+  function verDetalhesSelecionado() {
+    if (!agendamentoSelecionadoId) return mostrarMensagemAviso('Selecione um agendamento.');
+    carregarDetalhesAgendamento(agendamentoSelecionadoId, 'detalhes');
+  }
+
+  function confirmarChegadaSelecionado() {
+    if (!agendamentoSelecionadoId) return mostrarMensagemAviso('Selecione um agendamento.');
+
+    if (abaAtual === 'liberados') {
+      // Para liberados, usar o modal simples de confirmação de armazém
+      const row = document.getElementById(`liberado-${agendamentoSelecionadoId}`);
+      if (row) {
+        const placa = row.getAttribute('data-placa') || '';
+        abrirModalConfirmarArmazem(agendamentoSelecionadoId, placa);
+      } else {
+        // Fallback se não achar a linha (raro)
+        mostrarMensagemErro('Erro ao identificar veículo.');
+      }
+    } else {
+      // Para agendados, usar o modal de swipe (fluxo original)
+      carregarDetalhesAgendamento(agendamentoSelecionadoId, 'confirmacao');
+    }
+  }
+
+  function confirmarArmazemSelecionado() {
+    if (!agendamentoSelecionadoId) return mostrarMensagemAviso('Selecione um veículo.');
+
+    // Buscar a placa do veículo selecionado
+    const row = document.getElementById(`liberado-${agendamentoSelecionadoId}`);
+    if (row) {
+      const placa = row.getAttribute('data-placa') || '';
+      abrirModalConfirmarArmazem(agendamentoSelecionadoId, placa);
+    } else {
+      mostrarMensagemErro('Erro ao identificar veículo.');
+    }
+  }
+
+  function chamarMotoristaSelecionado() {
+    if (!agendamentoSelecionadoId) {
+      mostrarMensagemAviso('Selecione um agendamento.');
+      return;
+    }
+    chamarMotoristaIndividual(agendamentoSelecionadoId);
+  }
+
+  function carregarDetalhesAgendamento(id, tipo) {
+    fetch(`/rondonopolis/portaria/detalhes/?id=${id}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          tipo === 'detalhes' ? preencherModalDetalhes(data.agendamento) : preencherModalConfirmacao(data.agendamento);
+        } else {
+          mostrarMensagemErro('Erro ao carregar detalhes');
+        }
+      }).catch(() => { mostrarMensagemErro('Erro de conexão'); });
+  }
+
+  function preencherModalDetalhes(a) {
+    document.getElementById('titulo-modal').textContent = 'Detalhes do Agendamento';
+    document.getElementById('detalhe-motorista').textContent = a.motorista;
+    const horarioTexto = a.horario_agendado === '00:00' ? 'ENCAIXE' : a.horario_agendado;
+    document.getElementById('detalhe-horario').textContent = horarioTexto;
+    document.getElementById('detalhe-tipo').textContent = a.tipo === 'coleta' ? 'Coleta' : 'Entrega';
+    document.getElementById('detalhe-placa').textContent = a.placa_veiculo;
+    document.getElementById('detalhe-tipo-veiculo').textContent = a.tipo_veiculo || '-';
+    document.getElementById('detalhe-transportadora').textContent = a.transportadora;
+    document.getElementById('detalhe-peso').textContent = a.peso + ' kg';
+    document.getElementById('conteudo-detalhes').classList.remove('hidden');
+    document.getElementById('conteudo-confirmacao').classList.add('hidden');
+    document.getElementById('modal-formulario').classList.remove('hidden');
+    agendamentoSelecionado = a.id;
+  }
+
+  function preencherModalConfirmacao(a) {
+    // Fechar modal anterior se estiver aberto e limpar estado
+    const modalAnterior = document.getElementById('modal-formulario');
+    if (modalAnterior && !modalAnterior.classList.contains('hidden')) {
+      fecharModal();
+      // Aguardar um pouco para garantir que o modal foi fechado
+      setTimeout(() => {
+        abrirNovoModalConfirmacao(a);
+      }, 100);
+    } else {
+      abrirNovoModalConfirmacao(a);
+    }
+  }
+
+  function abrirNovoModalConfirmacao(a) {
+    document.getElementById('titulo-modal').textContent = 'Confirmar Chegada';
+    document.getElementById('confirmacao-motorista').textContent = a.motorista;
+    document.getElementById('confirmacao-placa').textContent = a.placa_veiculo;
+    document.getElementById('confirmacao-tipo-veiculo').textContent = a.tipo_veiculo || '-';
+    document.getElementById('confirmacao-transportadora').textContent = a.transportadora;
+    document.getElementById('confirmacao-tipo').textContent = a.tipo === 'coleta' ? 'Coleta' : 'Entrega';
+    document.getElementById('conteudo-confirmacao').classList.remove('hidden');
+    document.getElementById('conteudo-detalhes').classList.add('hidden');
+    const modal = document.getElementById('modal-formulario');
+    modal.classList.remove('hidden');
+    // Garantir que o ID seja definido corretamente e armazenar no modal também
+    agendamentoSelecionado = a.id || a.id_agendamento || null;
+    if (agendamentoSelecionado) {
+      modal.setAttribute('data-agendamento-id', agendamentoSelecionado);
+    }
+    // Limpar event listeners anteriores antes de adicionar novos
+    limparEventListenersSwipe();
+    // Resetar o swipe button antes de inicializar
+    resetarSwipeButton();
+    setTimeout(inicializarSwipeButton, 150);
+  }
+
+  // Variáveis para armazenar os event listeners
+  let swipeMouseMoveHandler = null;
+  let swipeMouseUpHandler = null;
+  let swipeTouchMoveHandler = null;
+  let swipeTouchEndHandler = null;
+
+  function limparEventListenersSwipe() {
+    if (swipeMouseMoveHandler) {
+      document.removeEventListener('mousemove', swipeMouseMoveHandler);
+      swipeMouseMoveHandler = null;
+    }
+    if (swipeMouseUpHandler) {
+      document.removeEventListener('mouseup', swipeMouseUpHandler);
+      swipeMouseUpHandler = null;
+    }
+    if (swipeTouchMoveHandler) {
+      document.removeEventListener('touchmove', swipeTouchMoveHandler);
+      swipeTouchMoveHandler = null;
+    }
+    if (swipeTouchEndHandler) {
+      document.removeEventListener('touchend', swipeTouchEndHandler);
+      swipeTouchEndHandler = null;
+    }
+  }
+
+  function inicializarSwipeButton() {
+    const track = document.querySelector('.swipe-track');
+    const thumb = document.querySelector('.swipe-thumb');
+    if (!track || !thumb) return;
+
+    // Limpar listeners anteriores
+    limparEventListenersSwipe();
+
+    resetarSwipeButton();
+    trackWidth = track.offsetWidth;
+    thumbWidth = thumb.offsetWidth;
+    const maxDrag = trackWidth - thumbWidth - 8;
+
+    // Mouse handlers
+    const mouseDownHandler = (e) => {
+      isDragging = true;
+      startX = e.clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeMouseMoveHandler = (e) => {
+      if (!isDragging) return;
+      currentX = e.clientX - track.getBoundingClientRect().left - startX;
+      currentX = Math.max(0, Math.min(currentX, maxDrag));
+      thumb.style.transform = `translateX(${currentX}px)`;
+      const p = currentX / maxDrag;
+      const progress = document.querySelector('.swipe-progress');
+      const text = document.querySelector('.swipe-text');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentX > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Solte para confirmar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>';
+      }
+    };
+
+    swipeMouseUpHandler = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      thumb.classList.remove('dragging');
+      if (currentX > maxDrag * 0.8) {
+        // Preservar o ID antes de fechar o modal
+        const idParaConfirmar = agendamentoSelecionado;
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress');
+        const text = document.querySelector('.swipe-text');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Confirmado!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white text-lg check-animation';
+        fecharModal();
+        setTimeout(() => {
+          // Restaurar o ID antes de processar
+          if (idParaConfirmar) agendamentoSelecionado = idParaConfirmar;
+          processarConfirmacao();
+        }, 300);
+      } else {
+        resetarSwipeButton();
+      }
+    };
+
+    // Touch handlers
+    const touchStartHandler = (e) => {
+      e.preventDefault();
+      isDragging = true;
+      startX = e.touches[0].clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeTouchMoveHandler = (e) => {
+      e.preventDefault();
+      if (!isDragging) return;
+      currentX = e.touches[0].clientX - track.getBoundingClientRect().left - startX;
+      currentX = Math.max(0, Math.min(currentX, maxDrag));
+      thumb.style.transform = `translateX(${currentX}px)`;
+      const p = currentX / maxDrag;
+      const progress = document.querySelector('.swipe-progress');
+      const text = document.querySelector('.swipe-text');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentX > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Solte para confirmar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>';
+      }
+    };
+
+    swipeTouchEndHandler = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      thumb.classList.remove('dragging');
+      if (currentX > maxDrag * 0.8) {
+        // Preservar o ID antes de fechar o modal
+        const idParaConfirmar = agendamentoSelecionado;
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress');
+        const text = document.querySelector('.swipe-text');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Confirmado!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white text-lg check-animation';
+        fecharModal();
+        setTimeout(() => {
+          // Restaurar o ID antes de processar
+          if (idParaConfirmar) agendamentoSelecionado = idParaConfirmar;
+          processarConfirmacao();
+        }, 300);
+      } else {
+        resetarSwipeButton();
+      }
+    };
+
+    thumb.addEventListener('mousedown', mouseDownHandler);
+    document.addEventListener('mousemove', swipeMouseMoveHandler);
+    document.addEventListener('mouseup', swipeMouseUpHandler);
+    thumb.addEventListener('touchstart', touchStartHandler);
+    document.addEventListener('touchmove', swipeTouchMoveHandler);
+    document.addEventListener('touchend', swipeTouchEndHandler);
+  }
+
+  function resetarSwipeButton() {
+    const track = document.querySelector('.swipe-track');
+    const thumb = document.querySelector('.swipe-thumb');
+    const progress = document.querySelector('.swipe-progress');
+    const text = document.querySelector('.swipe-text');
+    if (!thumb) return;
+    thumb.style.transform = 'translateX(0)';
+    if (track) track.classList.remove('success');
+    thumb.classList.remove('success', 'dragging');
+    if (progress) progress.style.transform = 'scaleX(0)';
+    if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para confirmar</span>';
+    const icon = thumb.querySelector('i');
+    if (icon) icon.className = 'bi bi-arrow-right text-sky-600 text-lg';
+    isDragging = false;
+    currentX = 0;
+  }
+
+  function fecharModal() {
+    const modal = document.getElementById('modal-formulario');
+    if (modal) {
+      modal.classList.add('hidden');
+      // Limpar todos os event listeners do swipe button
+      limparEventListenersSwipe();
+      // Resetar o swipe button
+      resetarSwipeButton();
+      // Limpar o ID do agendamento selecionado
+      agendamentoSelecionado = null;
+      // Remover atributo do modal
+      modal.removeAttribute('data-agendamento-id');
+      // Limpar qualquer estado do formulário
+      const form = modal.querySelector('form');
+      if (form) {
+        form.reset();
+      }
+    }
+  }
+
+  function confirmarChegadaIndividual(id) {
+    return new Promise((resolve, reject) => {
+      // Pegar o horário do relógio (formato HH:MM)
+      const horarioElement = document.getElementById('confirmacao-horario');
+      const horario = horarioElement ? horarioElement.textContent.split(':').slice(0, 2).join(':') : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Cuiaba' });
+      const fd = new FormData();
+      fd.append('agendamento_id', id);
+      fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+      fetch('/rondonopolis/portaria/confirmar-chegada/', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(d => d.success ? resolve(d) : reject(new Error(d.error || 'Erro')))
+        .catch(reject);
+    });
+  }
+
+  async function processarConfirmacao() {
+    try {
+      // Tentar recuperar o ID do modal se não estiver definido
+      if (!agendamentoSelecionado) {
+        const modal = document.getElementById('modal-formulario');
+        if (modal) {
+          const idDoModal = modal.getAttribute('data-agendamento-id');
+          if (idDoModal) agendamentoSelecionado = idDoModal;
+        }
+      }
+
+      if (agendamentoSelecionado) {
+        await confirmarChegadaIndividual(agendamentoSelecionado);
+        mostrarMensagemSucesso('Chegada confirmada com sucesso!');
+        // Limpar seleção
+        agendamentoSelecionadoId = null;
+        document.querySelectorAll('.agendamento-checkbox').forEach(cb => cb.checked = false);
+        atualizarContainerAcoes();
+        setTimeout(() => { window.location.reload(); }, 1500);
+      } else {
+        mostrarMensagemErro('Nenhum agendamento selecionado.');
+      }
+    } catch (err) {
+      mostrarMensagemErro('Erro: ' + (err.message || 'Erro ao confirmar chegada'));
+    }
+  }
+
+
+  // FUNÇÕES NOVAS PARA CHAMAR MOTORISTA
+  let agendamentoParaChamar = null;
+
+  function chamarMotoristaIndividual(agendamentoId) {
+    // Verificar se é tela pequena (mobile)
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile) {
+      // Em telas pequenas, mostrar modal de confirmação com swipe
+      agendamentoParaChamar = agendamentoId;
+      abrirModalChamarMotorista(agendamentoId);
+    } else {
+      // Em telas grandes, chamar diretamente
+      executarChamadaMotorista(agendamentoId);
+    }
+  }
+
+  function abrirModalChamarMotorista(agendamentoId) {
+    // Buscar informações do agendamento para exibir no modal
+    fetch(`/rondonopolis/portaria/detalhes/?id=${agendamentoId}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.agendamento) {
+          const a = data.agendamento;
+          document.getElementById('chamar-motorista-nome').textContent = a.motorista;
+          document.getElementById('chamar-motorista-placa').textContent = a.placa_veiculo;
+          document.getElementById('chamar-motorista-tipo').textContent = a.tipo;
+
+          const modal = document.getElementById('modal-chamar-motorista');
+          modal.classList.remove('hidden');
+          modal.setAttribute('data-agendamento-id', agendamentoId);
+
+          // Inicializar o swipe button
+          setTimeout(() => {
+            inicializarSwipeChamarMotorista();
+          }, 100);
+        } else {
+          mostrarMensagemErro(data.error || 'Erro ao carregar informações do agendamento');
+        }
+      })
+      .catch(error => {
+        mostrarMensagemErro('Erro ao carregar informações');
+        console.error('Erro:', error);
+      });
+  }
+
+  function fecharModalChamarMotorista() {
+    const modal = document.getElementById('modal-chamar-motorista');
+    if (modal) {
+      modal.classList.add('hidden');
+      limparEventListenersSwipeChamar();
+      resetarSwipeChamarMotorista();
+      modal.removeAttribute('data-agendamento-id');
+      agendamentoParaChamar = null;
+    }
+  }
+
+  function executarChamadaMotorista(agendamentoId) {
+    // Enviar mensagem via WhatsApp
+    const formData = new FormData();
+    formData.append('agendamento_id', agendamentoId);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('{% url "rondonopolis:chamar_motorista" %}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          if (data.sent_via_api) {
+            mostrarMensagemSucesso(data.message);
+          } else {
+            if (data.whatsapp_url) {
+              window.open(data.whatsapp_url, '_blank');
+            }
+            mostrarMensagemSucesso(data.message);
+          }
+        } else {
+          mostrarMensagemErro(data.error);
+        }
+      })
+      .catch(error => {
+        mostrarMensagemErro('Erro de conexão');
+        console.error('Erro ao chamar motorista:', error);
+      });
+  }
+
+  // Variáveis para o swipe de chamar motorista
+  let isDraggingChamar = false;
+  let startXChamar = 0;
+  let currentXChamar = 0;
+  let trackWidthChamar = 0;
+  let thumbWidthChamar = 0;
+  let swipeMouseMoveHandlerChamar = null;
+  let swipeMouseUpHandlerChamar = null;
+  let swipeTouchMoveHandlerChamar = null;
+  let swipeTouchEndHandlerChamar = null;
+
+  function limparEventListenersSwipeChamar() {
+    if (swipeMouseMoveHandlerChamar) {
+      document.removeEventListener('mousemove', swipeMouseMoveHandlerChamar);
+      swipeMouseMoveHandlerChamar = null;
+    }
+    if (swipeMouseUpHandlerChamar) {
+      document.removeEventListener('mouseup', swipeMouseUpHandlerChamar);
+      swipeMouseUpHandlerChamar = null;
+    }
+    if (swipeTouchMoveHandlerChamar) {
+      document.removeEventListener('touchmove', swipeTouchMoveHandlerChamar);
+      swipeTouchMoveHandlerChamar = null;
+    }
+    if (swipeTouchEndHandlerChamar) {
+      document.removeEventListener('touchend', swipeTouchEndHandlerChamar);
+      swipeTouchEndHandlerChamar = null;
+    }
+  }
+
+  function inicializarSwipeChamarMotorista() {
+    const track = document.querySelector('.swipe-track-chamar');
+    const thumb = document.querySelector('.swipe-thumb-chamar');
+    if (!track || !thumb) return;
+
+    limparEventListenersSwipeChamar();
+    resetarSwipeChamarMotorista();
+    trackWidthChamar = track.offsetWidth;
+    thumbWidthChamar = thumb.offsetWidth;
+    const maxDrag = trackWidthChamar - thumbWidthChamar - 8;
+
+    const mouseDownHandler = (e) => {
+      isDraggingChamar = true;
+      startXChamar = e.clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeMouseMoveHandlerChamar = (e) => {
+      if (!isDraggingChamar) return;
+      currentXChamar = e.clientX - track.getBoundingClientRect().left - startXChamar;
+      currentXChamar = Math.max(0, Math.min(currentXChamar, maxDrag));
+      thumb.style.transform = `translateX(${currentXChamar}px)`;
+      const p = currentXChamar / maxDrag;
+      const progress = document.querySelector('.swipe-progress-chamar');
+      const text = document.querySelector('.swipe-text-chamar');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentXChamar > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Solte para chamar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para chamar</span>';
+      }
+    };
+
+    swipeMouseUpHandlerChamar = () => {
+      if (!isDraggingChamar) return;
+      isDraggingChamar = false;
+      thumb.classList.remove('dragging');
+      if (currentXChamar > maxDrag * 0.8) {
+        const idParaChamar = agendamentoParaChamar || document.getElementById('modal-chamar-motorista').getAttribute('data-agendamento-id');
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress-chamar');
+        const text = document.querySelector('.swipe-text-chamar');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Chamando!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white text-lg check-animation';
+        fecharModalChamarMotorista();
+        setTimeout(() => {
+          if (idParaChamar) executarChamadaMotorista(idParaChamar);
+        }, 300);
+      } else {
+        resetarSwipeChamarMotorista();
+      }
+    };
+
+    const touchStartHandler = (e) => {
+      e.preventDefault();
+      isDraggingChamar = true;
+      startXChamar = e.touches[0].clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeTouchMoveHandlerChamar = (e) => {
+      e.preventDefault();
+      if (!isDraggingChamar) return;
+      currentXChamar = e.touches[0].clientX - track.getBoundingClientRect().left - startXChamar;
+      currentXChamar = Math.max(0, Math.min(currentXChamar, maxDrag));
+      thumb.style.transform = `translateX(${currentXChamar}px)`;
+      const p = currentXChamar / maxDrag;
+      const progress = document.querySelector('.swipe-progress-chamar');
+      const text = document.querySelector('.swipe-text-chamar');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentXChamar > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Solte para chamar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para chamar</span>';
+      }
+    };
+
+    swipeTouchEndHandlerChamar = () => {
+      if (!isDraggingChamar) return;
+      isDraggingChamar = false;
+      thumb.classList.remove('dragging');
+      if (currentXChamar > maxDrag * 0.8) {
+        const idParaChamar = agendamentoParaChamar || document.getElementById('modal-chamar-motorista').getAttribute('data-agendamento-id');
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress-chamar');
+        const text = document.querySelector('.swipe-text-chamar');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs md:text-sm">Chamando!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white text-lg check-animation';
+        fecharModalChamarMotorista();
+        setTimeout(() => {
+          if (idParaChamar) executarChamadaMotorista(idParaChamar);
+        }, 300);
+      } else {
+        resetarSwipeChamarMotorista();
+      }
+    };
+
+    thumb.addEventListener('mousedown', mouseDownHandler);
+    document.addEventListener('mousemove', swipeMouseMoveHandlerChamar);
+    document.addEventListener('mouseup', swipeMouseUpHandlerChamar);
+    thumb.addEventListener('touchstart', touchStartHandler);
+    document.addEventListener('touchmove', swipeTouchMoveHandlerChamar);
+    document.addEventListener('touchend', swipeTouchEndHandlerChamar);
+  }
+
+  function resetarSwipeChamarMotorista() {
+    const track = document.querySelector('.swipe-track-chamar');
+    const thumb = document.querySelector('.swipe-thumb-chamar');
+    const progress = document.querySelector('.swipe-progress-chamar');
+    const text = document.querySelector('.swipe-text-chamar');
+    if (!thumb) return;
+    thumb.style.transform = 'translateX(0)';
+    if (track) track.classList.remove('success');
+    thumb.classList.remove('success', 'dragging');
+    if (progress) progress.style.transform = 'scaleX(0)';
+    if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs md:text-sm">Deslize para chamar</span>';
+    const icon = thumb.querySelector('i');
+    if (icon) icon.className = 'bi bi-arrow-right text-sky-600 text-lg';
+    isDraggingChamar = false;
+    currentXChamar = 0;
+  }
+
+
+  // FUNÇÕES PARA A ABA TELEFONES
+  function abrirModalEditarTelefone(id, nome, telefone) {
+    motoristaEditando = id;
+    document.getElementById('motorista-id').value = id;
+    document.getElementById('motorista-nome').textContent = nome;
+    document.getElementById('telefone-input').value = telefone || '';
+    document.getElementById('modal-editar-telefone').classList.remove('hidden');
+  }
+
+  function fecharModalTelefone() {
+    document.getElementById('modal-editar-telefone').classList.add('hidden');
+    motoristaEditando = null;
+  }
+
+  // FUNÇÕES PARA CONFIRMAÇÃO DE ARMAZÉM
+  let agendamentoParaConfirmarArmazem = null;
+  let isDraggingArmazem = false;
+  let startXArmazem = 0;
+  let currentXArmazem = 0;
+  let trackWidthArmazem = 0;
+  let thumbWidthArmazem = 0;
+  let swipeMouseMoveHandlerArmazem = null;
+  let swipeMouseUpHandlerArmazem = null;
+  let swipeTouchMoveHandlerArmazem = null;
+  let swipeTouchEndHandlerArmazem = null;
+
+  function abrirModalConfirmarArmazem(agendamentoId, placa) {
+    agendamentoParaConfirmarArmazem = agendamentoId;
+
+    // Buscar dados completos do agendamento via AJAX
+    fetch(`/rondonopolis/portaria/detalhes/?id=${agendamentoId}`, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const ag = data.agendamento;
+
+          // Preencher dados no modal
+          document.getElementById('armazem-motorista').textContent = ag.motorista || '-';
+          document.getElementById('armazem-placa').textContent = ag.placa_veiculo || '-';
+          document.getElementById('armazem-tipo-veiculo').textContent = ag.tipo_veiculo || '-';
+          document.getElementById('armazem-transportadora').textContent = ag.transportadora || '-';
+          document.getElementById('armazem-tipo').textContent = ag.tipo === 'coleta' ? 'Coleta' : 'Entrega';
+
+          // Abrir modal
+          const modal = document.getElementById('modal-confirmar-armazem');
+          if (modal) {
+            modal.classList.remove('hidden');
+            modal.setAttribute('data-agendamento-id', agendamentoId);
+
+            // Inicializar swipe após um pequeno delay
+            setTimeout(() => {
+              inicializarSwipeArmazem();
+            }, 100);
+          }
+        } else {
+          mostrarMensagemErro('Erro ao carregar dados do veículo');
+        }
+      })
+      .catch(err => {
+        console.error('Erro ao buscar dados:', err);
+        mostrarMensagemErro('Erro ao carregar dados do veículo');
+      });
+  }
+
+  function fecharModalConfirmarArmazem() {
+    const modal = document.getElementById('modal-confirmar-armazem');
+    if (modal) {
+      modal.classList.add('hidden');
+      limparEventListenersSwipeArmazem();
+      resetarSwipeArmazem();
+      modal.removeAttribute('data-agendamento-id');
+      agendamentoParaConfirmarArmazem = null;
+    }
+  }
+
+  function limparEventListenersSwipeArmazem() {
+    if (swipeMouseMoveHandlerArmazem) {
+      document.removeEventListener('mousemove', swipeMouseMoveHandlerArmazem);
+      swipeMouseMoveHandlerArmazem = null;
+    }
+    if (swipeMouseUpHandlerArmazem) {
+      document.removeEventListener('mouseup', swipeMouseUpHandlerArmazem);
+      swipeMouseUpHandlerArmazem = null;
+    }
+    if (swipeTouchMoveHandlerArmazem) {
+      document.removeEventListener('touchmove', swipeTouchMoveHandlerArmazem);
+      swipeTouchMoveHandlerArmazem = null;
+    }
+    if (swipeTouchEndHandlerArmazem) {
+      document.removeEventListener('touchend', swipeTouchEndHandlerArmazem);
+      swipeTouchEndHandlerArmazem = null;
+    }
+  }
+
+  function inicializarSwipeArmazem() {
+    const track = document.querySelector('.swipe-track-armazem');
+    const thumb = document.querySelector('.swipe-thumb-armazem');
+    if (!track || !thumb) return;
+
+    limparEventListenersSwipeArmazem();
+    resetarSwipeArmazem();
+    trackWidthArmazem = track.offsetWidth;
+    thumbWidthArmazem = thumb.offsetWidth;
+    const maxDrag = trackWidthArmazem - thumbWidthArmazem - 8;
+
+    const mouseDownHandler = (e) => {
+      isDraggingArmazem = true;
+      startXArmazem = e.clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeMouseMoveHandlerArmazem = (e) => {
+      if (!isDraggingArmazem) return;
+      currentXArmazem = e.clientX - track.getBoundingClientRect().left - startXArmazem;
+      currentXArmazem = Math.max(0, Math.min(currentXArmazem, maxDrag));
+      thumb.style.transform = `translateX(${currentXArmazem}px)`;
+      const p = currentXArmazem / maxDrag;
+      const progress = document.querySelector('.swipe-progress-armazem');
+      const text = document.querySelector('.swipe-text-armazem');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentXArmazem > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Solte para confirmar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs">Deslize para confirmar</span>';
+      }
+    };
+
+    swipeMouseUpHandlerArmazem = () => {
+      if (!isDraggingArmazem) return;
+      isDraggingArmazem = false;
+      thumb.classList.remove('dragging');
+      if (currentXArmazem > maxDrag * 0.8) {
+        const idParaConfirmar = agendamentoParaConfirmarArmazem || document.getElementById('modal-confirmar-armazem').getAttribute('data-agendamento-id');
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress-armazem');
+        const text = document.querySelector('.swipe-text-armazem');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Confirmando!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white check-animation';
+        fecharModalConfirmarArmazem();
+        setTimeout(() => {
+          if (idParaConfirmar) executarConfirmacaoArmazem(idParaConfirmar);
+        }, 300);
+      } else {
+        resetarSwipeArmazem();
+      }
+    };
+
+    const touchStartHandler = (e) => {
+      isDraggingArmazem = true;
+      startXArmazem = e.touches[0].clientX - thumb.getBoundingClientRect().left;
+      thumb.classList.add('dragging');
+    };
+
+    swipeTouchMoveHandlerArmazem = (e) => {
+      if (!isDraggingArmazem) return;
+      currentXArmazem = e.touches[0].clientX - track.getBoundingClientRect().left - startXArmazem;
+      currentXArmazem = Math.max(0, Math.min(currentXArmazem, maxDrag));
+      thumb.style.transform = `translateX(${currentXArmazem}px)`;
+      const p = currentXArmazem / maxDrag;
+      const progress = document.querySelector('.swipe-progress-armazem');
+      const text = document.querySelector('.swipe-text-armazem');
+      if (progress) progress.style.transform = `scaleX(${p})`;
+      if (currentXArmazem > maxDrag * 0.7) {
+        track.classList.add('success');
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Solte para confirmar</span>';
+      } else {
+        track.classList.remove('success');
+        if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs">Deslize para confirmar</span>';
+      }
+    };
+
+    swipeTouchEndHandlerArmazem = () => {
+      if (!isDraggingArmazem) return;
+      isDraggingArmazem = false;
+      thumb.classList.remove('dragging');
+      if (currentXArmazem > maxDrag * 0.8) {
+        const idParaConfirmar = agendamentoParaConfirmarArmazem || document.getElementById('modal-confirmar-armazem').getAttribute('data-agendamento-id');
+        thumb.style.transform = `translateX(${maxDrag}px)`;
+        thumb.classList.add('success');
+        const progress = document.querySelector('.swipe-progress-armazem');
+        const text = document.querySelector('.swipe-text-armazem');
+        if (progress) progress.style.transform = 'scaleX(1)';
+        if (text) text.innerHTML = '<span class="text-white font-medium text-xs">Confirmando!</span>';
+        const i = thumb.querySelector('i');
+        if (i) i.className = 'bi bi-check-lg text-white check-animation';
+        fecharModalConfirmarArmazem();
+        setTimeout(() => {
+          if (idParaConfirmar) executarConfirmacaoArmazem(idParaConfirmar);
+        }, 300);
+      } else {
+        resetarSwipeArmazem();
+      }
+    };
+
+    thumb.addEventListener('mousedown', mouseDownHandler);
+    document.addEventListener('mousemove', swipeMouseMoveHandlerArmazem);
+    document.addEventListener('mouseup', swipeMouseUpHandlerArmazem);
+    thumb.addEventListener('touchstart', touchStartHandler);
+    document.addEventListener('touchmove', swipeTouchMoveHandlerArmazem);
+    document.addEventListener('touchend', swipeTouchEndHandlerArmazem);
+  }
+
+  function resetarSwipeArmazem() {
+    const track = document.querySelector('.swipe-track-armazem');
+    const thumb = document.querySelector('.swipe-thumb-armazem');
+    const progress = document.querySelector('.swipe-progress-armazem');
+    const text = document.querySelector('.swipe-text-armazem');
+    if (!thumb) return;
+    thumb.style.transform = 'translateX(0)';
+    if (track) track.classList.remove('success');
+    thumb.classList.remove('success', 'dragging');
+    if (progress) progress.style.transform = 'scaleX(0)';
+    if (text) text.innerHTML = '<span class="text-gray-500 font-medium text-xs">Deslize para confirmar</span>';
+    const icon = thumb.querySelector('i');
+    if (icon) icon.className = 'bi bi-arrow-right text-sky-600';
+    isDraggingArmazem = false;
+    currentXArmazem = 0;
+  }
+
+  function executarConfirmacaoArmazem(agendamentoId) {
+    // Obter horário do campo hidden
+    const horario = document.getElementById('relogio-armazem-hidden').value;
+
+    const formData = new FormData();
+    formData.append('agendamento_id', agendamentoId);
+    formData.append('horario', horario);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('{% url "rondonopolis:confirmar_chegada_armazem_portaria" %}', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          mostrarMensagemSucesso(data.message || 'Entrada no armazém confirmada com sucesso!');
+          // Salvar aba ativa antes de recarregar
+          sessionStorage.setItem('portaria_aba_ativa', 'liberados');
+          // Recarregar a página para atualizar a interface e mostrar o timestamp
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          mostrarMensagemErro(data.error || 'Erro ao confirmar entrada no armazém');
+        }
+      })
+      .catch(error => {
+        mostrarMensagemErro('Erro de conexão ao confirmar chegada no armazém');
+        console.error('Erro:', error);
+      });
+  }
+
+
+  // Relógio em tempo real para Rondonópolis (sincronizado com o servidor)
+  let offsetServidor = 0; // Diferença em milissegundos entre o cliente e o servidor
+
+  function atualizarRelogio() {
+    const relogioElement = document.getElementById('confirmacao-horario');
+    const hiddenElement = document.getElementById('confirmacao-horario-hidden');
+    const relogioArmazem = document.getElementById('relogio-armazem');
+    const hiddenArmazem = document.getElementById('relogio-armazem-hidden');
+
+    if (relogioElement || relogioArmazem) {
+      // Usar o horário do servidor ajustado pelo offset
+      const agora = new Date(Date.now() + offsetServidor);
+      const opcoes = {
+        timeZone: 'America/Cuiaba',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      };
+      const horarioCompleto = agora.toLocaleTimeString('pt-BR', { ...opcoes, second: '2-digit' });
+      const horarioSemSegundos = agora.toLocaleTimeString('pt-BR', { ...opcoes });
+
+      if (relogioElement) relogioElement.textContent = horarioCompleto;
+      if (hiddenElement) hiddenElement.value = horarioSemSegundos;
+      if (relogioArmazem) relogioArmazem.textContent = horarioCompleto;
+      if (hiddenArmazem) hiddenArmazem.value = horarioSemSegundos;
+    }
+  }
+
+  // Sincronizar com o servidor a cada 30 segundos
+  function sincronizarComServidor() {
+    fetch('{% url "rondonopolis:obter_horario_atual" %}')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          // O timestamp vem em ISO com timezone de Rondonópolis
+          // Criar data a partir do timestamp ISO
+          const horarioServidor = new Date(d.timestamp);
+          // Obter horário atual do cliente
+          const agoraCliente = new Date();
+          // Calcular offset baseado na diferença entre os timestamps
+          offsetServidor = horarioServidor.getTime() - agoraCliente.getTime();
+          atualizarRelogio();
+        }
+      })
+      .catch(() => {
+        // Se falhar, usar horário local com timezone de Rondonópolis
+        atualizarRelogio();
+      });
+  }
+
+  // Atualizar relógio a cada segundo
+  setInterval(atualizarRelogio, 1000);
+  // Sincronizar com servidor a cada 30 segundos
+  setInterval(sincronizarComServidor, 30000);
+  // Sincronizar imediatamente ao carregar
+  sincronizarComServidor();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Atualizar relógio quando o modal for aberto
+    const modal = document.getElementById('modal-formulario');
+    if (modal) {
+      const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          if (!modal.classList.contains('hidden')) {
+            atualizarRelogio();
+          }
+        });
+      });
+      observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    // Função de pesquisa para a aba de telefones
+    const pesquisaInput = document.getElementById('pesquisa-telefones');
+    if (pesquisaInput) {
+      pesquisaInput.addEventListener('input', function (e) {
+        filtrarTelefones(e.target.value);
+      });
+    }
+  });
+
+  // Sistema de atualização em tempo real usando polling
+  let pollingIntervalPortaria = null;
+
+  function iniciarPollingPortaria() {
+    // Evitar múltiplos intervalos
+    if (pollingIntervalPortaria) {
+      clearInterval(pollingIntervalPortaria);
+    }
+
+    console.log('Sistema de atualização em tempo real ativo (verificando a cada 3 segundos)');
+
+    // Primeira atualização após 1 segundo
+    setTimeout(() => {
+      verificarAtualizacoesPortaria();
+    }, 1000);
+
+    // Depois verificar a cada 3 segundos
+    pollingIntervalPortaria = setInterval(() => {
+      verificarAtualizacoesPortaria();
+    }, 3000);
+  }
+
+  // Armazenar último estado para comparar mudanças
+  let ultimoEstadoPortaria = {
+    totalAgendamentos: 0,
+    totalLiberados: 0,
+    idsAgendamentos: new Set(),
+    idsLiberados: new Set()
+  };
+
+  function verificarAtualizacoesPortaria() {
+    fetch('{% url "rondonopolis:portaria_atualizar_dados" %}', {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      cache: 'no-cache'
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Verificar se há mudanças
+          const idsAgendamentosAtual = new Set(data.agendamentos.map(a => a.id));
+          const idsLiberadosAtual = new Set(data.liberados.map(l => l.id));
+
+          const mudouAgendamentos = data.total_agendamentos !== ultimoEstadoPortaria.totalAgendamentos ||
+            !setsIguais(idsAgendamentosAtual, ultimoEstadoPortaria.idsAgendamentos);
+
+          const mudouLiberados = data.total_liberados !== ultimoEstadoPortaria.totalLiberados ||
+            !setsIguais(idsLiberadosAtual, ultimoEstadoPortaria.idsLiberados);
+
+          if (mudouAgendamentos || mudouLiberados || !ultimoEstadoPortaria.timestamp) {
+            // Há mudanças, atualizar interface
+            atualizarInterfacePortaria(data);
+
+            // Atualizar estado
+            ultimoEstadoPortaria = {
+              totalAgendamentos: data.total_agendamentos,
+              totalLiberados: data.total_liberados,
+              idsAgendamentos: idsAgendamentosAtual,
+              idsLiberados: idsLiberadosAtual,
+              timestamp: data.timestamp || Date.now()
+            };
+          } else if (data.timestamp) {
+            // Atualizar timestamp mesmo sem mudanças visíveis
+            ultimoEstadoPortaria.timestamp = data.timestamp;
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao verificar atualizações:', error);
+      });
+  }
+
+  function setsIguais(set1, set2) {
+    if (set1.size !== set2.size) return false;
+    for (let item of set1) {
+      if (!set2.has(item)) return false;
+    }
+    return true;
+  }
+
+  // Função para recarregar dados da portaria
+  function recarregarDadosPortaria() {
+    fetch('{% url "rondonopolis:portaria_atualizar_dados" %}', {
+      method: 'GET',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      cache: 'no-cache'
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          atualizarInterfacePortaria(data);
+          // Atualizar estado
+          ultimoEstadoPortaria = {
+            totalAgendamentos: data.total_agendamentos,
+            totalLiberados: data.total_liberados,
+            idsAgendamentos: new Set(data.agendamentos.map(a => a.id)),
+            idsLiberados: new Set(data.liberados.map(l => l.id)),
+            timestamp: data.timestamp || Date.now()
+          };
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao recarregar dados:', error);
+      });
+  }
+
+  // Função para atualizar a interface da portaria
+  function atualizarInterfacePortaria(data) {
+    // Atualizar contadores usando data-badge para seleção mais precisa
+    const badgeAgendados = document.querySelector('[data-badge="agendados"]');
+    const badgeLiberados = document.querySelector('[data-badge="liberados"]');
+
+    if (badgeAgendados) {
+      badgeAgendados.textContent = data.total_agendamentos;
+    }
+
+    if (badgeLiberados) {
+      badgeLiberados.textContent = data.total_liberados;
+    }
+
+    // Atualizar tabela de agendados (desktop)
+    atualizarTabelaAgendados(data.agendamentos);
+
+    // Atualizar tabela de liberados (desktop)
+    atualizarTabelaLiberados(data.liberados);
+
+    // Atualizar cards mobile
+    atualizarCardsMobile(data.agendamentos, data.liberados);
+  }
+
+  // Função para atualizar tabela de agendados
+  function atualizarTabelaAgendados(agendamentos) {
+    const tbody = document.getElementById('tabela-agendamentos');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (agendamentos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-400 text-[14px]">Nenhum agendamento para hoje</td></tr>';
+      return;
+    }
+
+    agendamentos.forEach(agendamento => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b border-gray-100 hover:bg-gray-50 agendamento-row';
+      tr.id = `agendamento-${agendamento.id}`;
+      tr.setAttribute('data-motorista', agendamento.motorista.toLowerCase());
+      tr.setAttribute('data-placa', agendamento.placa_veiculo.toLowerCase());
+      tr.setAttribute('data-transportadora', agendamento.transportadora.toLowerCase());
+
+      const tipoBadge = agendamento.tipo === 'coleta'
+        ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>'
+        : '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>';
+
+      const horarioDisplay = agendamento.horario_agendado === '00:00'
+        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 inline-block w-fit">ENCAIXE</span>'
+        : `<span class="text-gray-800">${agendamento.horario_agendado}</span>`;
+
+      const horarioChegada = '';
+
+      tr.innerHTML = `
+            <td class="py-2 px-3">
+                <input type="checkbox" name="agendamento_selecionado" value="${agendamento.id}" class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+            </td>
+            <td class="py-2 px-3 font-medium text-gray-900">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                    ${agendamento.motorista}
+                    ${tipoBadge}
+                </div>
+            </td>
+            <td class="py-2 px-3">
+                <div class="flex flex-col">
+                    ${horarioDisplay}
+                    ${horarioChegada}
+                </div>
+            </td>
+            <td class="py-2 px-3 font-mono text-gray-800">${agendamento.placa_veiculo}</td>
+            <td class="py-2 px-3">${agendamento.transportadora}</td>
+            <td class="py-2 px-3">${agendamento.tipo_veiculo}</td>
+        `;
+
+      tbody.appendChild(tr);
+    });
+
+    // Verificar se o ID selecionado ainda existe na tabela atualizada
+    if (agendamentoSelecionadoId) {
+      const checkboxExistente = document.querySelector(`.agendamento-checkbox[value="${agendamentoSelecionadoId}"]`);
+      if (!checkboxExistente) {
+        // Se o ID não existe mais, limpar a seleção
+        agendamentoSelecionadoId = null;
+        atualizarContainerAcoes();
+      } else {
+        // Se existe, marcar o checkbox correspondente
+        checkboxExistente.checked = true;
+      }
+    }
+
+    // Reaplicar event listeners aos checkboxes (usando event delegation para evitar duplicação)
+    // Primeiro, remover listeners antigos se existirem
+    const tbodyElement = document.getElementById('tabela-agendamentos');
+    if (tbodyElement) {
+      // Usar event delegation no tbody para evitar problemas com listeners duplicados
+      tbodyElement.removeEventListener('change', handleCheckboxChange);
+      tbodyElement.addEventListener('change', handleCheckboxChange);
+    }
+  }
+
+  // Função para atualizar tabela de liberados
+  function atualizarTabelaLiberados(liberados) {
+    const tbody = document.getElementById('tabela-liberados');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (liberados.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-400 text-[14px]">Nenhum veículo liberado hoje</td></tr>';
+      return;
+    }
+
+    liberados.forEach(liberado => {
+      const tr = document.createElement('tr');
+      tr.className = 'border-b border-gray-100 hover:bg-gray-50 liberado-row';
+      tr.id = `liberado-${liberado.id}`;
+      tr.setAttribute('data-motorista', liberado.motorista.toLowerCase());
+      tr.setAttribute('data-placa', liberado.placa_veiculo.toLowerCase());
+      tr.setAttribute('data-transportadora', liberado.transportadora.toLowerCase());
+      // ATRIBUTO PARA ORDENAÇÃO FORÇADA
+      tr.setAttribute('data-armazem', liberado.portaria_chegada_armazem ? '1' : '0');
+
+      const tipoBadge = liberado.tipo === 'coleta'
+        ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100 ml-1">Coleta</span>'
+        : '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100 ml-1">Entrega</span>';
+
+      const horarioDisplay = liberado.horario_agendado === '00:00'
+        ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
+        : liberado.horario_agendado;
+
+      const dataLiberacao = liberado.portaria_liberacao
+        ? new Date(liberado.portaria_liberacao).toLocaleString('pt-BR', { timeZone: 'America/Cuiaba' })
+        : '-';
+
+      // Formatar confirmação do armazém
+      let confirmacaoArmazem = '<span class="text-gray-400 text-xs">-</span>';
+      if (liberado.portaria_chegada_armazem) {
+        const dataConfirmacao = new Date(liberado.portaria_chegada_armazem);
+        const dia = String(dataConfirmacao.getDate()).padStart(2, '0');
+        const mes = String(dataConfirmacao.getMonth() + 1).padStart(2, '0');
+        const hora = String(dataConfirmacao.getHours()).padStart(2, '0');
+        const minuto = String(dataConfirmacao.getMinutes()).padStart(2, '0');
+        confirmacaoArmazem = `
+          <div class="flex items-center gap-1.5 text-emerald-600">
+            <i class="bi bi-building-check text-sm"></i>
+            <span class="text-xs">${dia}/${mes} ${hora}:${minuto}</span>
+          </div>
+        `;
+      }
+
+      tr.innerHTML = `
+            <td class="py-2 px-3">
+              <input type="checkbox" name="agendamento_selecionado" value="${liberado.id}"
+                class="agendamento-checkbox rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+            </td>
+            <td class="py-2 px-3 font-medium text-gray-900">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                    ${liberado.motorista}
+                    ${tipoBadge}
+                </div>
+            </td>
+            <td class="py-2 px-3 text-gray-800">${horarioDisplay}</td>
+            <td class="py-2 px-3 text-emerald-600">${dataLiberacao}</td>
+            <td class="py-2 px-3 font-mono text-gray-800">${liberado.placa_veiculo}</td>
+            <td class="py-2 px-3">${liberado.tipo_veiculo}</td>
+            <td class="py-2 px-3">${liberado.transportadora}</td>
+            <td class="py-2 px-3">${confirmacaoArmazem}</td>
+        `;
+
+      tbody.appendChild(tr);
+    });
+
+    // FORÇAR ORDENAÇÃO VISUAL (NUCLEAR OPTION)
+    enforceOrdenacaoNuclear();
+  }
+
+  // Função para garantir ordenação visual no cliente
+  function enforceOrdenacaoNuclear() {
+    const tbody = document.getElementById('tabela-liberados');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr.liberado-row'));
+    if (rows.length === 0) return;
+
+    // Separar em dois grupos
+    const semArmazem = [];
+    const comArmazem = [];
+
+    rows.forEach(row => {
+      const temArmazem = row.getAttribute('data-armazem') === '1';
+      if (temArmazem) {
+        comArmazem.push(row);
+      } else {
+        semArmazem.push(row);
+      }
+    });
+
+    // Re-inserir no DOM na ordem correta
+    // 1. Sem Armazem (Topo)
+    semArmazem.forEach(row => tbody.appendChild(row));
+    // 2. Com Armazem (Fundo)
+    comArmazem.forEach(row => tbody.appendChild(row));
+
+    // console.log("Ordenação Nuclear Aplicada via JS:", { sem: semArmazem.length, com: comArmazem.length });
+  }
+
+  // Função para atualizar cards mobile
+  function atualizarCardsMobile(agendamentos, liberados) {
+    // Atualizar cards de agendados
+    const containerAgendados = document.querySelector('#conteudo-agendados .md\\:hidden');
+    if (containerAgendados) {
+      containerAgendados.innerHTML = '';
+
+      if (agendamentos.length === 0) {
+        containerAgendados.innerHTML = '<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center"><p class="text-gray-400 text-sm">Nenhum agendamento para hoje</p></div>';
+      } else {
+        agendamentos.forEach(agendamento => {
+          const card = criarCardAgendamentoMobile(agendamento);
+          containerAgendados.appendChild(card);
+        });
+      }
+    }
+
+    // Atualizar cards de liberados
+    const containerLiberados = document.querySelector('#conteudo-liberados .md\\:hidden');
+    if (containerLiberados) {
+      containerLiberados.innerHTML = '';
+
+      if (liberados.length === 0) {
+        containerLiberados.innerHTML = '<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center"><p class="text-gray-400 text-sm">Nenhum veículo liberado hoje</p></div>';
+      } else {
+        liberados.forEach(liberado => {
+          const card = criarCardLiberadoMobile(liberado);
+          containerLiberados.appendChild(card);
+        });
+      }
+    }
+  }
+
+  // Função auxiliar para criar card de agendamento mobile
+  function criarCardAgendamentoMobile(agendamento) {
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 agendamento-row';
+    card.id = `agendamento-card-${agendamento.id}`;
+    card.setAttribute('data-motorista', agendamento.motorista.toLowerCase());
+    card.setAttribute('data-placa', agendamento.placa_veiculo.toLowerCase());
+    card.setAttribute('data-transportadora', agendamento.transportadora.toLowerCase());
+
+    const tipoBadge = agendamento.tipo === 'coleta'
+      ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>'
+      : '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>';
+
+    const horarioDisplay = agendamento.horario_agendado === '00:00'
+      ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
+      : agendamento.horario_agendado;
+
+    const horarioChegada = '';
+
+    card.innerHTML = `
+        <div class="mb-3">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                <h3 class="font-semibold text-gray-900 text-sm">${agendamento.motorista}</h3>
+                ${tipoBadge}
+            </div>
+            <div class="space-y-1 text-xs text-gray-600">
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-clock text-gray-400 text-xs"></i>
+                    ${horarioDisplay}
+                    ${horarioChegada}
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-truck text-gray-400 text-xs"></i>
+                    <span class="font-mono">${agendamento.placa_veiculo}</span>
+                    <span class="text-gray-500">•</span>
+                    <span>${agendamento.tipo_veiculo}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-building text-gray-400 text-xs"></i>
+                    <span class="truncate">${agendamento.transportadora}</span>
+                </div>
+                ${agendamento.coluna_ad ? `
+                <div class="mt-5 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                    <div class="flex items-start gap-1.5">
+                        <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
+                        <div class="flex-1">
+                            <span class="text-xs font-medium text-gray-500 block mb-1">Documentos:</span>
+                            <span class="text-xs text-gray-700 break-words">${agendamento.coluna_ad}</span>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+        <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+            <button onclick="carregarDetalhesAgendamento('${agendamento.id}', 'detalhes')" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+                <i class="bi bi-eye"></i>
+                Ver Detalhes
+            </button>
+            ${agendamento.motorista_telefone ? `
+            <button onclick="chamarMotoristaIndividual('${agendamento.id}')" class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+                <i class="bi bi-megaphone"></i>
+                Chamar Motorista
+            </button>
+            ` : ''}
+            <button onclick="carregarDetalhesAgendamento('${agendamento.id}', 'confirmacao')" class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+                <i class="bi bi-check-lg"></i>
+                Confirmar Chegada
+            </button>
+        </div>
+    `;
+
+    return card;
+  }
+
+
+  // Função auxiliar para criar card de liberado mobile
+  function criarCardLiberadoMobile(liberado) {
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 liberado-row';
+    card.id = `liberado-card-${liberado.id}`;
+    card.setAttribute('data-motorista', liberado.motorista.toLowerCase());
+    card.setAttribute('data-placa', liberado.placa_veiculo.toLowerCase());
+    card.setAttribute('data-transportadora', liberado.transportadora.toLowerCase());
+
+    const tipoBadge = liberado.tipo === 'coleta'
+      ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-blue-700 bg-blue-50 text-xs font-medium border border-blue-100">Coleta</span>'
+      : '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-emerald-700 bg-emerald-50 text-xs font-medium border border-emerald-100">Entrega</span>';
+
+    const horarioDisplay = liberado.horario_agendado === '00:00'
+      ? '<span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>'
+      : liberado.horario_agendado;
+
+    const dataLiberacao = liberado.portaria_liberacao
+      ? new Date(liberado.portaria_liberacao).toLocaleString('pt-BR', { timeZone: 'America/Cuiaba' })
+      : '-';
+
+    // Formatar confirmação do armazém
+    let confirmacaoArmazemHtml = '';
+    if (liberado.portaria_chegada_armazem) {
+      const dataConfirmacao = new Date(liberado.portaria_chegada_armazem);
+      const dia = String(dataConfirmacao.getDate()).padStart(2, '0');
+      const mes = String(dataConfirmacao.getMonth() + 1).padStart(2, '0');
+      const hora = String(dataConfirmacao.getHours()).padStart(2, '0');
+      const minuto = String(dataConfirmacao.getMinutes()).padStart(2, '0');
+      confirmacaoArmazemHtml = `
+        <div class="flex items-center gap-2">
+          <i class="bi bi-building-check text-emerald-600"></i>
+          <span class="text-emerald-600 text-xs">Armazém: ${dia}/${mes} ${hora}:${minuto}</span>
+        </div>
+      `;
+    }
+
+    // Botão de ação condicional - só mostrar se não foi confirmado
+    let acaoButtonHtml = '';
+    if (!liberado.portaria_chegada_armazem) {
+      acaoButtonHtml = `
+        <button onclick="abrirModalConfirmarArmazem('${liberado.id}', '${liberado.placa_veiculo}')" class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-2 rounded-md transition-colors">
+          <i class="bi bi-building-check"></i>
+          Confirmar Armazém
+        </button>
+      `;
+    }
+
+    card.innerHTML = `
+        <div class="flex items-center gap-2 mb-2">
+            <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+            <h3 class="font-semibold text-gray-900 text-sm">${liberado.motorista}</h3>
+            ${tipoBadge}
+        </div>
+        <div class="space-y-1.5 text-xs text-gray-600">
+            <div class="flex items-center gap-2">
+                <i class="bi bi-clock text-gray-400"></i>
+                <span>Agendado: ${horarioDisplay}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <i class="bi bi-check-circle text-emerald-600"></i>
+                <span class="text-emerald-600">Liberado: ${dataLiberacao}</span>
+            </div>
+            ${confirmacaoArmazemHtml}
+            <div class="flex items-center gap-2">
+                <i class="bi bi-truck text-gray-400"></i>
+                <span class="font-mono">${liberado.placa_veiculo}</span>
+                <span class="text-gray-500">•</span>
+                <span>${liberado.tipo_veiculo}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <i class="bi bi-building text-gray-400"></i>
+                <span>${liberado.transportadora}</span>
+            </div>
+            ${liberado.coluna_ad ? `
+            <div class="mt-5 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                <div class="flex items-start gap-1.5">
+                    <i class="bi bi-file-text text-gray-400 text-xs mt-0.5"></i>
+                    <div class="flex-1">
+                        <span class="text-xs font-medium text-gray-500 block mb-1">Documentos:</span>
+                        <span class="text-xs text-gray-700 break-words">${liberado.coluna_ad}</span>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        <div class="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+            <button onclick="carregarDetalhesAgendamento('${liberado.id}', 'detalhes')" class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs px-3 py-2 rounded-md border border-gray-300 transition-colors">
+                <i class="bi bi-eye"></i>
+                Ver Detalhes
+            </button>
+            ${acaoButtonHtml}
+        </div>
+    `;
+
+    return card;
+  }
+
+
+  // Função para remover agendamento da interface
+  function removerAgendamentoDaInterface(agendamentoId) {
+    // Remover da tabela desktop
+    const trDesktop = document.getElementById(`agendamento-${agendamentoId}`);
+    if (trDesktop) trDesktop.remove();
+
+    // Remover do card mobile
+    const cardMobile = document.getElementById(`agendamento-card-${agendamentoId}`);
+    if (cardMobile) cardMobile.remove();
+
+    // Remover da tabela de liberados desktop
+    const trLiberado = document.getElementById(`liberado-${agendamentoId}`);
+    if (trLiberado) trLiberado.remove();
+
+    // Remover do card de liberado mobile
+    const cardLiberado = document.getElementById(`liberado-card-${agendamentoId}`);
+    if (cardLiberado) cardLiberado.remove();
+
+    // Atualizar contadores usando data-badge para seleção mais precisa
+    const totalAgendamentos = document.querySelectorAll('.agendamento-row').length;
+    const totalLiberados = document.querySelectorAll('.liberado-row').length;
+
+    const badgeAgendados = document.querySelector('[data-badge="agendados"]');
+    const badgeLiberados = document.querySelector('[data-badge="liberados"]');
+
+    if (badgeAgendados) {
+      badgeAgendados.textContent = totalAgendamentos;
+    }
+
+    if (badgeLiberados) {
+      badgeLiberados.textContent = totalLiberados;
+    }
+  }
+
+  // Função para filtrar agendamentos e liberados
+  function filtrarPortaria(termo) {
+    const termoLower = termo.toLowerCase().trim();
+
+    // Filtrar agendamentos (desktop e mobile)
+    const agendamentosRows = document.querySelectorAll('.agendamento-row');
+    let agendamentosVisiveis = 0;
+
+    agendamentosRows.forEach(row => {
+      const motorista = row.getAttribute('data-motorista') || '';
+      const placa = row.getAttribute('data-placa') || '';
+      const transportadora = row.getAttribute('data-transportadora') || '';
+
+      if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
+        row.style.display = '';
+        agendamentosVisiveis++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    // Filtrar liberados (desktop e mobile)
+    const liberadosRows = document.querySelectorAll('.liberado-row');
+    let liberadosVisiveis = 0;
+
+    liberadosRows.forEach(row => {
+      const motorista = row.getAttribute('data-motorista') || '';
+      const placa = row.getAttribute('data-placa') || '';
+      const transportadora = row.getAttribute('data-transportadora') || '';
+
+      if (termoLower === '' || motorista.includes(termoLower) || placa.includes(termoLower) || transportadora.includes(termoLower)) {
+        row.style.display = '';
+        liberadosVisiveis++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  // Função para filtrar a tabela de telefones
+  function filtrarTelefones(termo) {
+    const termoLower = termo.toLowerCase().trim();
+    // Desktop: linhas da tabela
+    const linhas = document.querySelectorAll('#tabela-telefones .motorista-row');
+    // Mobile: cards
+    const cards = document.querySelectorAll('#tabela-telefones-mobile .motorista-row');
+    let linhasVisiveis = 0;
+
+    // Filtrar linhas desktop
+    linhas.forEach(linha => {
+      const nome = linha.getAttribute('data-nome') || '';
+      const telefone = linha.getAttribute('data-telefone') || '';
+
+      if (termoLower === '' || nome.includes(termoLower) || telefone.includes(termoLower)) {
+        linha.style.display = '';
+        linhasVisiveis++;
+      } else {
+        linha.style.display = 'none';
+      }
+    });
+
+    // Filtrar cards mobile
+    cards.forEach(card => {
+      const nome = card.getAttribute('data-nome') || '';
+      const telefone = card.getAttribute('data-telefone') || '';
+
+      if (termoLower === '' || nome.includes(termoLower) || telefone.includes(termoLower)) {
+        card.style.display = '';
+        linhasVisiveis++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Mostrar mensagem se não houver resultados (desktop)
+    const tbody = document.getElementById('tabela-telefones');
+    if (tbody) {
+      const mensagemExistente = tbody.querySelector('tr[data-sem-resultado]');
+
+      if (linhasVisiveis === 0 && termoLower !== '') {
+        if (!mensagemExistente) {
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-sem-resultado', 'true');
+          tr.innerHTML = '<td colspan="3" class="py-4 text-center text-gray-400">Nenhum motorista encontrado com o termo "' + termo + '"</td>';
+          tbody.appendChild(tr);
+        }
+      } else {
+        if (mensagemExistente) {
+          mensagemExistente.remove();
+        }
+      }
+    }
+
+    // Mostrar mensagem se não houver resultados (mobile)
+    const containerMobile = document.getElementById('tabela-telefones-mobile');
+    if (containerMobile) {
+      let mensagemMobile = containerMobile.querySelector('div[data-sem-resultado]');
+
+      if (linhasVisiveis === 0 && termoLower !== '') {
+        if (!mensagemMobile) {
+          mensagemMobile = document.createElement('div');
+          mensagemMobile.setAttribute('data-sem-resultado', 'true');
+          mensagemMobile.className = 'bg-white rounded-lg border border-gray-200 p-8 text-center';
+          mensagemMobile.innerHTML = '<p class="text-gray-400 text-sm">Nenhum motorista encontrado com o termo "' + termo + '"</p>';
+          containerMobile.appendChild(mensagemMobile);
+        }
+      } else {
+        if (mensagemMobile) {
+          mensagemMobile.remove();
+        }
+      }
+    }
+  }
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/smart_update.js' %}?v=5"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Inicializar Smart Update para a tela 'portaria'
+    SmartUpdate.init('portaria');
+
+    // FORÇAR ORDENAÇÃO NA CARGA INICIAL
+    setTimeout(enforceOrdenacaoNuclear, 500);
+
+    // Observer para Tabela de Liberados (Garantir ordenação se o HTML for substituído)
+    const tbodyLiberados = document.getElementById('tabela-liberados');
+    let observerLiberados = null;
+
+    // Função para iniciar o observer
+    function startObserver() {
+      if (!tbodyLiberados) return;
+      if (observerLiberados) observerLiberados.disconnect();
+
+      observerLiberados = new MutationObserver(function (mutations) {
+        let shouldSort = false;
+        mutations.forEach(m => {
+          // Só queremos reagir se houver adição de nós (smart update substituiu a tabela)
+          // Ignorar alterações de atributo (como classes mudando ao clicar)
+          if (m.type === 'childList' && m.addedNodes.length > 0) {
+            shouldSort = true;
+          }
+        });
+
+        if (shouldSort) {
+          // Desconecta temporariamente para não ouvir as próprias mudanças da ordenação
+          observerLiberados.disconnect();
+
+          // Pequeno delay para garantir que o DOM renderizou
+          setTimeout(() => {
+            enforceOrdenacaoNuclear();
+            // Reconecta após ordenar
+            startObserver();
+          }, 50);
+        }
+      });
+
+      observerLiberados.observe(tbodyLiberados, { childList: true });
+    }
+
+    if (tbodyLiberados) {
+      startObserver();
+    }
+
+    // Observer para restaurar estado após atualização do SmartUpdate (Agendados)
+    if (containerAgendados) {
+      const observer = new MutationObserver(function (mutations) {
+        let updated = false;
+        mutations.forEach(function (mutation) {
+          if (mutation.type === 'childList') {
+            updated = true;
+          }
+        });
+
+        if (updated) {
+          // Re-aplicar listeners
+          const tbody = document.getElementById('tabela-agendamentos');
+          if (tbody && typeof handleCheckboxChange === 'function') {
+            tbody.addEventListener('change', handleCheckboxChange);
+          }
+
+          // Restaurar seleção
+          if (typeof agendamentoSelecionadoId !== 'undefined' && agendamentoSelecionadoId) {
+            const checkbox = document.querySelector(`.agendamento-checkbox[value="${agendamentoSelecionadoId}"]`);
+            if (checkbox) {
+              checkbox.checked = true;
+            } else {
+              // Item sumiu (foi liberado?), limpar seleção
+              agendamentoSelecionadoId = null;
+            }
+            if (typeof atualizarContainerAcoes === 'function') {
+              atualizarContainerAcoes();
+            }
+          }
+        }
+      });
+      observer.observe(containerAgendados, { childList: true, subtree: true });
+    }
+
+    // Inicializar aba - verificar se deve restaurar aba Liberados
+    const abaParaAbrir = sessionStorage.getItem('portaria_aba_ativa') || 'agendados';
+    sessionStorage.removeItem('portaria_aba_ativa'); // Limpar após usar
+    alternarAba(abaParaAbrir);
+  });
+</script>
+{% endblock %}

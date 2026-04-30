@@ -1,0 +1,406 @@
+{% load static %}
+{% load timezone_tags %}
+{% load tz %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedimento Interno - Transcamila</title>
+    <style>
+        :root {
+            --primary-color: #2B4A6A;
+            /* Muted blue for headers */
+            --text-color: #1A1A1A;
+            /* Near-black for text */
+            --label-color: #4A4A4A;
+            /* Dark gray for labels */
+            --border-color: #D3D3D3;
+            /* Light gray for borders */
+            --background-light: #F9F9F9;
+            /* Subtle off-white for backgrounds */
+        }
+
+        @page {
+            margin: 1.5cm;
+            size: A4;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 12px;
+            color: var(--text-color);
+            line-height: 1.4;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 6px;
+            box-sizing: border-box;
+            min-height: 800px;
+            /* A4 height at 96dpi, minus margins, adjusted */
+            overflow: visible;
+            /* Allow content to flow */
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            padding-bottom: 60px;
+            /* Espaço para o rodapé */
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .logo {
+            width: 160px;
+            height: auto;
+            margin-right: 12px;
+        }
+
+        .header-text {
+            flex-grow: 1;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 0 0 4px 0;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--label-color);
+            margin: 0;
+            font-weight: 500;
+        }
+
+        .document-info {
+            text-align: right;
+            font-size: 11px;
+        }
+
+        .document-number {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .section {
+            margin-bottom: 5px;
+            page-break-inside: avoid;
+            padding: 4px 0;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-grid {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .data-grid.agendamento {
+            grid-template-columns: repeat(4, 1fr);
+            /* 4 columns */
+        }
+
+        .data-item.full-width {
+            grid-column: span 2;
+            /* Ocupa 2 colunas */
+        }
+
+        .data-item.span-2 {
+            grid-column: span 2;
+            /* Ocupa 2 colunas */
+        }
+
+        .data-item.span-3 {
+            grid-column: span 3;
+            /* Ocupa 3 colunas */
+        }
+
+        .data-item.placa {
+            grid-column: span 2;
+            /* Placa ocupa 2 colunas */
+        }
+
+        .data-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data-label {
+            font-weight: bold;
+            font-size: 11px;
+            color: var(--label-color);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .data-value {
+            padding: 8px;
+            background: var(--background-light);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 11px;
+            min-height: 32px;
+            line-height: 1.4;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+        }
+
+        .data-value.multiline {
+            white-space: normal;
+            word-wrap: break-word;
+            text-overflow: unset;
+            display: block;
+            height: auto;
+        }
+
+        .process-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .process-table th,
+        .process-table td {
+            padding: 3px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .process-table th {
+            background: var(--primary-color);
+            color: #fff;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 6px 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .status-concluido {
+            background: #E8ECEF;
+            /* Light gray for completed */
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 6px;
+            right: 6px;
+            text-align: center;
+            font-size: 10px;
+            color: var(--label-color);
+            border-top: 2px solid var(--border-color);
+            padding-top: 6px;
+            padding-bottom: 6px;
+            font-style: italic;
+            background: #fff;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .container {
+                padding: 0;
+                min-height: 100vh;
+                position: relative;
+            }
+
+            .content-wrapper {
+                padding-bottom: 80px;
+            }
+
+            .footer {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                display: block !important;
+                visibility: visible !important;
+                page-break-inside: avoid !important;
+            }
+        }
+
+        @media screen and (max-width: 600px) {
+            .data-grid.agendamento {
+                grid-template-columns: repeat(2, 1fr);
+                /* Fallback for digital view */
+            }
+
+            .data-item.full-width,
+            .data-item.span-2,
+            .data-item.span-3,
+            .data-item.placa {
+                grid-column: span 2;
+                /* Em mobile todos ocupam 2 colunas */
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="content-wrapper">
+            <!-- Cabeçalho -->
+            <header class="header">
+                <img src="{% static 'imagens/Transcamila.png' %}" alt="Transcamila Logo" class="logo">
+                <div class="header-text">
+                    <h1 class="title">Procedimento Interno</h1>
+                    <p class="subtitle">Transcamila - Rondonópolis/MT</p>
+                </div>
+                <div class="document-info">
+                    <div class="document-number">Ordem de coleta: {{ agendamento.ordem }}</div>
+                    <div>Data: {% timezone "America/Cuiaba" %}{% now "d/m/Y" %}{% endtimezone %}</div>
+                </div>
+            </header>
+
+            <!-- Informações do Agendamento -->
+            <section class="section">
+                <h2 class="section-title">Informações do Agendamento</h2>
+                <div class="data-grid agendamento">
+                    <div class="data-item {% if agendamento.motorista.telefone %}span-3{% else %}full-width{% endif %}">
+                        <span class="data-label">Nome do Motorista</span>
+                        <div class="data-value">{{ agendamento.motorista.nome }}</div>
+                    </div>
+                    {% if agendamento.motorista.telefone %}
+                    <div class="data-item">
+                        <span class="data-label">Telefone</span>
+                        <div class="data-value">{{ agendamento.motorista.telefone }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="data-item full-width">
+                        <span class="data-label">Data e Horário Agendado</span>
+                        <div class="data-value">{{ agendamento.data_agendada|date:"d/m/Y" }} às
+                            {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                            <span
+                                class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">ENCAIXE</span>
+                            {% else %}
+                            {{ agendamento.horario_agendado|time:"H:i" }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Tipo de Serviço</span>
+                        <div class="data-value">{{ agendamento.get_tipo_display }}</div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Transportadora</span>
+                        <div class="data-value">{{ agendamento.transportadora.nome }}</div>
+                    </div>
+                    <div class="data-item placa">
+                        <span class="data-label">Placa do Veículo</span>
+                        <div class="data-value">{{ agendamento.placa_veiculo }}</div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Tipo de Veículo</span>
+                        <div class="data-value">{{ agendamento.get_tipo_veiculo_display }}</div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Peso</span>
+                        <div class="data-value">{{ agendamento.peso }} kg</div>
+                    </div>
+                </div>
+                {% if agendamento.coluna_ad %}
+                <div class="data-grid" style="grid-template-columns: 1fr; margin-top: 6px;">
+                    <div class="data-item">
+                        <span class="data-label">Documentos</span>
+                        <div class="data-value multiline">{{ agendamento.coluna_ad }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Processos -->
+            <section class="section">
+                <h2 class="section-title">Processos</h2>
+                <table class="process-table">
+                    <thead>
+                        <tr>
+                            <th>Etapa</th>
+                            <th>Conclusão</th>
+                            <th>Status</th>
+                            <th>Responsável</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for etapa in etapas_ordenadas %}
+                        <tr>
+                            <td>{{ etapa.nome }}</td>
+                            <td>{{ etapa.conclusao_formatada|default:"-" }}</td>
+                            <td>
+                                <span class="status-badge {% if etapa.concluida %}status-concluido{% endif %}">
+                                    {% if etapa.concluida %}Concluído{% else %}Pendente{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if etapa.concluida %}
+                                <div style="font-weight: 500; color: #2B4A6A;">{{ etapa.usuario|default:"SISTEMA" }}
+                                </div>
+                                {% else %}
+                                <div style="color: #999;">---</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- Rodapé -->
+        <footer class="footer">
+            <div style="margin-bottom: 4px;">
+                Documento gerado em {% timezone "America/Cuiaba" %}{% now "d/m/Y H:i" %}{% endtimezone %}
+                - Transcamila Cargas e Armazéns Gerais LTDA
+            </div>
+            <div style="font-size: 9px; color: #666; font-style: normal;">* As informações deste documento podem ser
+                alteradas durante o processo</div>
+        </footer>
+    </div>
+</body>
+
+</html>

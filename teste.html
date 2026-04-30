@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portaria - Controle de Motoristas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+        }
+        
+        .notification {
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .driver-card {
+            transition: all 0.3s ease;
+        }
+        
+        .driver-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Container Principal -->
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="sidebar bg-blue-800 text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform md:relative md:translate-x-0 z-10">
+            <div class="flex items-center space-x-2 px-4">
+                <i class="fas fa-truck-moving text-2xl"></i>
+                <span class="text-2xl font-extrabold">Portaria</span>
+            </div>
+            
+            <nav>
+                <a href="#" class="block py-2.5 px-4 rounded transition duration-200 bg-blue-700">
+                    <i class="fas fa-home mr-2"></i>Dashboard
+                </a>
+                <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-blue-700">
+                    <i class="fas fa-truck mr-2"></i>Motoristas
+                </a>
+                <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-blue-700">
+                    <i class="fas fa-history mr-2"></i>Histórico
+                </a>
+                <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-blue-700">
+                    <i class="fas fa-cog mr-2"></i>Configurações
+                </a>
+            </nav>
+        </div>
+        
+        <!-- Conteúdo Principal -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="flex items-center justify-between p-4 bg-white shadow">
+                <div class="flex items-center">
+                    <button id="menu-toggle" class="text-gray-500 focus:outline-none md:hidden">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="text-xl font-semibold text-gray-800 ml-4">Controle de Motoristas</h1>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <button class="text-gray-500 focus:outline-none">
+                            <i class="fas fa-bell text-xl"></i>
+                        </button>
+                        <span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">3</span>
+                    </div>
+                    <div class="relative">
+                        <button class="flex items-center space-x-2 focus:outline-none">
+                            <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">OP</div>
+                            <span class="hidden md:block font-medium">Operador Portaria</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Conteúdo -->
+            <main class="flex-1 overflow-y-auto p-4 md:p-6">
+                <!-- Notificações -->
+                <div class="notification bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-circle text-yellow-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-700">
+                                <span class="font-medium">Atenção!</span> Há 2 motoristas aguardando liberação.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estatísticas Rápidas -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center">
+                            <div class="rounded-full bg-blue-100 p-3">
+                                <i class="fas fa-truck text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Motoristas Hoje</p>
+                                <p class="text-2xl font-semibold text-gray-900">12</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center">
+                            <div class="rounded-full bg-green-100 p-3">
+                                <i class="fas fa-check-circle text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Liberados</p>
+                                <p class="text-2xl font-semibold text-gray-900">8</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center">
+                            <div class="rounded-full bg-yellow-100 p-3">
+                                <i class="fas fa-clock text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Aguardando</p>
+                                <p class="text-2xl font-semibold text-gray-900">2</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Formulário de Registro -->
+                <div class="bg-white rounded-lg shadow mb-6">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Registrar Chegada de Motorista</h3>
+                        
+                        <form id="driver-form">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="driver-name" class="block text-sm font-medium text-gray-700">Nome do Motorista</label>
+                                    <input type="text" id="driver-name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Nome completo">
+                                </div>
+                                
+                                <div>
+                                    <label for="driver-company" class="block text-sm font-medium text-gray-700">Empresa</label>
+                                    <input type="text" id="driver-company" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Nome da empresa">
+                                </div>
+                                
+                                <div>
+                                    <label for="driver-plate" class="block text-sm font-medium text-gray-700">Placa do Veículo</label>
+                                    <input type="text" id="driver-plate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="ABC-1234">
+                                </div>
+                                
+                                <div>
+                                    <label for="driver-document" class="block text-sm font-medium text-gray-700">Documento</label>
+                                    <input type="text" id="driver-document" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="CPF ou RG">
+                                </div>
+                                
+                                <div class="md:col-span-2">
+                                    <label for="driver-purpose" class="block text-sm font-medium text-gray-700">Motivo da Visita</label>
+                                    <textarea id="driver-purpose" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Descreva o motivo da visita"></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 flex justify-end">
+                                <button type="button" class="bg-gray-200 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                    <i class="fas fa-plus mr-2"></i> Registrar Chegada
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Lista de Motoristas -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-4 py-5 sm:px-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Motoristas Aguardando</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Lista de motoristas que chegaram e aguardam liberação.</p>
+                    </div>
+                    <div class="border-t border-gray-200">
+                        <ul class="divide-y divide-gray-200">
+                            <!-- Motorista 1 -->
+                            <li class="p-4 driver-card">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <i class="fas fa-user text-blue-600"></i>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">Carlos Silva</div>
+                                            <div class="text-sm text-gray-500">Transportadora Rápida - Placa: ABC-1234</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            Aguardando
+                                        </span>
+                                        <button class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-sm">
+                                            <i class="fas fa-check mr-1"></i> Liberar
+                                        </button>
+                                        <button class="bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm">
+                                            <i class="fas fa-times mr-1"></i> Recusar
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <!-- Motorista 2 -->
+                            <li class="p-4 driver-card">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <i class="fas fa-user text-blue-600"></i>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">João Santos</div>
+                                            <div class="text-sm text-gray-500">Logística Express - Placa: XYZ-5678</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            Aguardando
+                                        </span>
+                                        <button class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-sm">
+                                            <i class="fas fa-check mr-1"></i> Liberar
+                                        </button>
+                                        <button class="bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm">
+                                            <i class="fas fa-times mr-1"></i> Recusar
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <!-- Motorista 3 (Liberado) -->
+                            <li class="p-4 driver-card">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <i class="fas fa-user text-blue-600"></i>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">Maria Oliveira</div>
+                                            <div class="text-sm text-gray-500">Cargas Rápidas - Placa: DEF-9012</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Liberado
+                                        </span>
+                                        <button class="bg-gray-400 text-white py-1 px-3 rounded text-sm cursor-not-allowed" disabled>
+                                            <i class="fas fa-check mr-1"></i> Liberar
+                                        </button>
+                                    </div>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Toggle menu mobile
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('active');
+        });
+        
+        // Simulação do envio do formulário
+        document.getElementById('driver-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Aqui normalmente enviaria os dados para o servidor
+            alert('Motorista registrado com sucesso!');
+            
+            // Limpar formulário
+            document.getElementById('driver-form').reset();
+        });
+        
+        // Simulação de liberação de motorista
+        document.querySelectorAll('button.bg-green-600').forEach(button => {
+            button.addEventListener('click', function() {
+                const driverName = this.closest('li').querySelector('.text-sm.font-medium').textContent;
+                this.innerHTML = '<i class="fas fa-check mr-1"></i> Liberado';
+                this.classList.remove('bg-green-600', 'hover:bg-green-700');
+                this.classList.add('bg-gray-400', 'cursor-not-allowed');
+                this.disabled = true;
+                
+                // Atualizar status
+                const statusSpan = this.parentElement.querySelector('span');
+                statusSpan.textContent = 'Liberado';
+                statusSpan.classList.remove('bg-yellow-100', 'text-yellow-800');
+                statusSpan.classList.add('bg-green-100', 'text-green-800');
+                
+                alert(`Motorista ${driverName} liberado com sucesso!`);
+            });
+        });
+        
+        // Simulação de recusa de motorista
+        document.querySelectorAll('button.bg-red-600').forEach(button => {
+            button.addEventListener('click', function() {
+                const driverCard = this.closest('li');
+                const driverName = driverCard.querySelector('.text-sm.font-medium').textContent;
+                
+                if (confirm(`Tem certeza que deseja recusar o motorista ${driverName}?`)) {
+                    driverCard.style.opacity = '0.5';
+                    setTimeout(() => {
+                        driverCard.remove();
+                    }, 500);
+                    
+                    alert(`Motorista ${driverName} recusado.`);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

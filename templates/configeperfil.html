@@ -1,0 +1,460 @@
+{% extends 'baserdn.html' %}
+{% load static %}
+
+{% block title %}Configurações e Perfil - Operação Rondonópolis{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+  <div class="flex items-center gap-2">
+    <span class="w-2 h-6 bg-sky-600"></span>
+    <h1 class="text-2xl font-semibold text-gray-900">Configurações e Perfil</h1>
+  </div>
+</div>
+
+<!-- Conteúdo Principal -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Informações da Conta -->
+  <div class="space-y-6">
+    <!-- Informações Básicas -->
+    <div class="bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+      <div class="p-6">
+        <div class="flex items-center gap-2 mb-6">
+          <span class="w-2 h-6 bg-sky-600"></span>
+          <h2 class="text-xl font-semibold text-gray-900">Informações sobre a conta</h2>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome de usuário</label>
+            <p class="text-gray-900 font-medium">{{ user.username }}</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nome da conta</label>
+            <p class="text-gray-900 font-medium">{{ user.get_full_name }}</p>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <p class="text-gray-900 font-medium">{{ user.email }}</p>
+          </div>
+          
+          <div class="pt-4 border-t border-gray-200">
+            <p class="text-sm text-gray-500">
+              Conta gerenciada sob domínio da empresa 
+              <span class="font-medium text-gray-700">Transcamila Cargas e Armazéns Gerais LTDA - @transcamila.com</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Operações Disponíveis -->
+    <div class="bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+      <div class="p-6">
+        <div class="flex items-center gap-2 mb-6">
+          <span class="w-2 h-6 bg-sky-600"></span>
+          <h2 class="text-xl font-semibold text-gray-900">Operações Disponíveis</h2>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Suas operações relacionadas</label>
+            
+            <!-- Lista de Filiais Disponíveis -->
+            <div class="space-y-3">
+              {% for filial in user.userprofile.filiais.all %}
+              <div class="flex items-center justify-between p-3 border border-gray-200 rounded-md {% if user.userprofile.filial_selecionada.id == filial.id %}bg-blue-50 border-blue-200{% else %}bg-gray-50{% endif %}">
+                <div class="flex items-center gap-3">
+                  <div class="flex items-center justify-center w-8 h-8 {% if user.userprofile.filial_selecionada.id == filial.id %}bg-sky-100 text-sky-600{% else %}bg-gray-100 text-gray-400{% endif %} rounded-full">
+                    <i class="bi bi-building text-sm"></i>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900">{{ filial.nome }}</p>
+                    <p class="text-sm text-gray-500">{{ filial.get_codigo_display }}</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                  {% if user.userprofile.filial_selecionada.id == filial.id %}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <i class="bi bi-check-circle-fill mr-1"></i>
+                    Ativa
+                  </span>
+                  {% else %}
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    <i class="bi bi-building mr-1"></i>
+                    Disponível
+                  </span>
+                  {% endif %}
+                </div>
+              </div>
+              {% empty %}
+              <div class="text-center py-4 text-gray-500">
+                <i class="bi bi-building-exclamation text-2xl mb-2"></i>
+                <p>Nenhuma filial disponível</p>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          
+          <!-- Operação Atual Selecionada -->
+          {% if user.userprofile.filial_selecionada %}
+          <div class="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-md">
+            <div class="flex items-center gap-3">
+              <i class="bi bi-info-circle text-sky-600"></i>
+              <div>
+                <p class="text-sm font-medium text-sky-900">Operação atual em uso:</p>
+                <p class="text-sm text-sky-700">
+                  <strong>{{ user.userprofile.filial_selecionada.nome }}</strong> 
+                  ({{ user.userprofile.filial_selecionada.get_codigo_display }})
+                </p>
+                <p class="text-xs text-sky-600 mt-1">
+                  App: {{ user.userprofile.filial_selecionada.app_django }} | 
+                  URL: {{ user.userprofile.filial_selecionada.url_inicial }}
+                </p>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Notificações -->
+  <div class="bg-white rounded-md overflow-hidden shadow-sm border border-gray-200">
+    <div class="p-6">
+      <div class="flex items-center gap-2 mb-6">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h2 class="text-xl font-semibold text-gray-900">Notificações</h2>
+      </div>
+      
+      {% if config_notificacao %}
+      <form method="POST" action="{% url 'rondonopolis:configuracoes_perfil' %}">
+        {% csrf_token %}
+        <div class="space-y-6">
+          <!-- Notificação por Email -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-medium text-gray-900">Receber notificações por email?</h4>
+                <p class="text-xs text-gray-500">Notificações sobre processos e atualizações do sistema</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="receber_email" name="receber_email" class="sr-only peer" {% if preferencias.receber_email %}checked{% endif %}>
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+              </label>
+            </div>
+            
+            <!-- Campo de email (somente leitura - configurado pelo administrador) -->
+            {% if config_notificacao.email_destinatario %}
+            <div class="transition-all duration-200">
+              <input type="email" value="{{ config_notificacao.email_destinatario }}" 
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+                     disabled readonly>
+              <p class="text-xs text-gray-400 mt-1">Email configurado pelo administrador</p>
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p class="text-xs text-yellow-700">Email não configurado. Entre em contato com o administrador.</p>
+            </div>
+            {% endif %}
+          </div>
+          
+          <!-- Notificação por WhatsApp -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-medium text-gray-900">Receber notificações por WhatsApp?</h4>
+                <p class="text-xs text-gray-500">Alertas importantes via WhatsApp</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="receber_whatsapp" name="receber_whatsapp" class="sr-only peer" {% if preferencias.receber_whatsapp %}checked{% endif %}>
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+              </label>
+            </div>
+            
+            <!-- Campo de WhatsApp (somente leitura - configurado pelo administrador) -->
+            {% if config_notificacao.whatsapp_destinatario %}
+            <div class="transition-all duration-200">
+              <input type="text" value="{{ config_notificacao.whatsapp_destinatario }}" 
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed"
+                     disabled readonly>
+              <p class="text-xs text-gray-400 mt-1">WhatsApp configurado pelo administrador</p>
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <p class="text-xs text-yellow-700">WhatsApp não configurado. Entre em contato com o administrador.</p>
+            </div>
+            {% endif %}
+          </div>
+          
+          <!-- Notificação do Navegador (Web Push) -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-medium text-gray-900">Receber notificações push do navegador?</h4>
+                <p class="text-xs text-gray-500">Notificações que funcionam mesmo com o site fechado</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="receber_navegador" name="receber_navegador" class="sr-only peer" {% if preferencias.receber_navegador %}checked{% endif %}>
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+              </label>
+            </div>
+            
+            <!-- Status da subscription -->
+            <div id="status-push-subscription" class="text-xs">
+              {% if preferencias.receber_navegador %}
+                {% if preferencias.push_subscription %}
+                  <p class="text-green-600"><i class="bi bi-check-circle"></i> Notificações push ativadas</p>
+                {% else %}
+                  <button type="button" onclick="ativarNotificacoesPush()" class="text-sky-600 hover:text-sky-700 underline">
+                    Clique aqui para ativar notificações push
+                  </button>
+                {% endif %}
+              {% else %}
+                <p class="text-gray-500">Ative a opção acima para configurar</p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- Botão Salvar -->
+          <div class="pt-4 border-t border-gray-200">
+            <button type="submit" class="w-full bg-sky-600 text-white py-2 px-4 rounded-md hover:bg-sky-700 transition-colors">
+              Salvar Preferências
+            </button>
+          </div>
+        </div>
+      </form>
+      {% else %}
+      <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+        <p class="text-sm text-yellow-700">
+          <strong>Atenção:</strong> Suas configurações de notificação ainda não foram configuradas pelo administrador. 
+          Entre em contato para configurar seu email e WhatsApp.
+        </p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div id="modalConfirmacao" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-2 sm:mx-0">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-6 bg-sky-600"></span>
+        <h1 class="text-xl font-normal text-black">Configurações Salvas</h1>
+      </div>
+      <button onclick="fecharModalConfirmacao()" class="text-gray-400 hover:text-gray-500">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <div class="p-6">
+      <p class="text-gray-700">Suas configurações de notificação foram atualizadas com sucesso!</p>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+      <button onclick="fecharModalConfirmacao()" class="px-4 py-2 border border-transparent rounded-md text-white bg-sky-600 hover:bg-sky-700">
+        Fechar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Carregamento -->
+<div id="modalCarregamento" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-sm mx-2 sm:mx-0 p-6">
+    <div class="flex flex-col items-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-sky-600 mb-4"></div>
+      <p class="text-gray-700 font-medium">Salvando configurações...</p>
+      <p class="text-sm text-gray-500 mt-1">Aguarde um momento</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Funções para controlar os modais
+function abrirModalConfirmacao() {
+    document.getElementById('modalConfirmacao').classList.remove('hidden');
+}
+
+function fecharModalConfirmacao() {
+    document.getElementById('modalConfirmacao').classList.add('hidden');
+}
+
+function mostrarCarregamento() {
+    document.getElementById('modalCarregamento').classList.remove('hidden');
+}
+
+function esconderCarregamento() {
+    document.getElementById('modalCarregamento').classList.add('hidden');
+}
+
+// Fechar modal ao clicar fora
+document.addEventListener('click', function(event) {
+    const modalConfirmacao = document.getElementById('modalConfirmacao');
+    
+    if (event.target === modalConfirmacao) {
+        fecharModalConfirmacao();
+    }
+});
+
+// ==================== WEB PUSH NOTIFICATIONS ====================
+
+let registration = null;
+
+// Registrar Service Worker e solicitar permissão
+async function ativarNotificacoesPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Seu navegador não suporta notificações push');
+        return;
+    }
+    
+    try {
+        // Registrar Service Worker
+        registration = await navigator.serviceWorker.register('/static/sw.js', {
+            scope: '/'
+        });
+        console.log('Service Worker registrado:', registration);
+        console.log('Service Worker scope:', registration.scope);
+        console.log('Service Worker active:', registration.active);
+        
+        // Solicitar permissão
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            // Obter chave pública VAPID
+            const response = await fetch('{% url "rondonopolis:vapid_public_key" %}');
+            const data = await response.json();
+            
+            if (!data.publicKey) {
+                alert('Erro: Chave VAPID não configurada no servidor');
+                return;
+            }
+            
+            // Criar subscription
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(data.publicKey)
+            });
+            
+            // Enviar subscription para o servidor
+            const saveResponse = await fetch('{% url "rondonopolis:registrar_push_subscription" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ subscription: subscription.toJSON() })
+            });
+            
+            const saveData = await saveResponse.json();
+            
+            if (saveData.success) {
+                atualizarStatusPush();
+                if (window.mostrarToast) {
+                    window.mostrarToast('Notificações push ativadas com sucesso!', 'success');
+                }
+            } else {
+                alert('Erro ao salvar subscription: ' + saveData.error);
+            }
+        } else {
+            alert('Permissão para notificações negada');
+        }
+    } catch (error) {
+        console.error('Erro ao ativar notificações push:', error);
+        alert('Erro ao ativar notificações: ' + error.message);
+    }
+}
+
+// Converter chave VAPID de base64 URL para Uint8Array
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+    
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// Atualizar status da subscription
+function atualizarStatusPush() {
+    const statusDiv = document.getElementById('status-push-subscription');
+    if (!statusDiv) return;
+    
+    const receberNavegador = document.getElementById('receber_navegador');
+    if (!receberNavegador || !receberNavegador.checked) {
+        statusDiv.innerHTML = '<p class="text-gray-500">Ative a opção acima para configurar</p>';
+        return;
+    }
+    
+    // Verificar se já tem subscription (será atualizado após salvar)
+    statusDiv.innerHTML = '<p class="text-green-600"><i class="bi bi-check-circle"></i> Notificações push ativadas</p>';
+}
+
+// Verificar status ao carregar página
+document.addEventListener('DOMContentLoaded', async function() {
+    if ('serviceWorker' in navigator) {
+        try {
+            // Verificar se Service Worker já está registrado
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            if (registrations.length > 0) {
+                registration = registrations[0];
+                console.log('Service Worker já registrado:', registration);
+            } else {
+                // Tentar registrar se não estiver
+                registration = await navigator.serviceWorker.register('/static/sw.js');
+                console.log('Service Worker registrado:', registration);
+            }
+            atualizarStatusPush();
+        } catch (e) {
+            console.error('Erro ao verificar Service Worker:', e);
+        }
+    } else {
+        console.warn('Service Worker não suportado neste navegador');
+    }
+    
+    // Quando checkbox mudar
+    const receberNavegador = document.getElementById('receber_navegador');
+    if (receberNavegador) {
+        receberNavegador.addEventListener('change', function() {
+            if (this.checked && Notification.permission === 'default') {
+                setTimeout(() => {
+                    atualizarStatusPush();
+                }, 100);
+            } else {
+                atualizarStatusPush();
+            }
+        });
+    }
+});
+
+// Função auxiliar para pegar cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

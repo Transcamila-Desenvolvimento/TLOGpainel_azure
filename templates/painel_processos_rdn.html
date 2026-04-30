@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel Operação Rondonópolis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      font-family: 'Inter', sans-serif;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+    }
+    h1, h2 {
+      line-height: 1.2;
+    }
+    h1 {
+      font-size: clamp(3rem, 6vw, 7rem);
+    }
+    h2 {
+      font-size: clamp(1.5rem, 2.5vw, 3rem);
+    }
+    table {
+      font-size: clamp(1rem, 1.5vw, 1.8rem);
+    }
+    .scrollable-table {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 px-8 py-8">
+
+  <!-- HEADER -->
+  <header class="mb-12 flex justify-between items-center border-b pb-6 border-gray-300">
+    <div class="flex items-center gap-4">
+      <a href="#" class="p-3 rounded-full border border-gray-300 hover:bg-gray-200 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-12 w-12">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+      </a>
+      <div>
+        <h1 class="text-[clamp(1rem,1.5vw,1.6rem)] font-bold leading-tight text-gray-800">
+          Transcamila - Rondonópolis
+        </h1>
+        <p class="text-[clamp(1.5rem,2.5vw,3rem)] text-gray-500">
+          Painel de controle operacional
+        </p>
+        <p class="text-lg text-gray-600 mt-2">Operação: 23/09/2025</p>
+      </div>
+    </div>
+    <div class="h-20 flex items-center justify-center bg-gray-800 text-white px-4 rounded-lg">
+      <span class="font-bold text-xl">LOGO TRANSCAMILA</span>
+    </div>
+  </header>
+
+  <!-- RESUMO DE OPERAÇÕES -->
+  <section class="mb-12 bg-white rounded-xl shadow-md p-6">
+    <h2 class="font-semibold text-xl mb-5">Resumo da Operação</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <h3 class="text-blue-800 font-semibold">Cargas</h3>
+        <p class="text-3xl font-bold text-blue-600 mt-2">6</p>
+        <p class="text-blue-700 mt-1">Total: 120.000 kg</p>
+      </div>
+      <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+        <h3 class="text-green-800 font-semibold">Descargas</h3>
+        <p class="text-3xl font-bold text-green-600 mt-2">5</p>
+        <p class="text-green-700 mt-1">Total: 95.000 kg</p>
+      </div>
+      <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+        <h3 class="text-purple-800 font-semibold">Total Geral</h3>
+        <p class="text-3xl font-bold text-purple-600 mt-2">11</p>
+        <p class="text-purple-700 mt-1">Total: 215.000 kg</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABELA PRINCIPAL -->
+  <section class="bg-white rounded-xl shadow-md p-6 mb-12">
+    <h2 class="font-semibold text-xl mb-5">Agendamentos</h2>
+    <div class="scrollable-table">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left border-b border-gray-300 text-gray-500 uppercase text-sm">
+            <th class="py-3">Agendamento</th>
+            <th>Portaria</th>
+            <th>Armazém</th>
+            <th>Tipo</th>
+            <th>Motorista</th>
+            <th>Placa</th>
+            <th>Transportadora</th>
+            <th>Peso</th>
+            <th>Check List</th>
+            <th>OD / Onda</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Dados de exemplo baseados na estrutura da planilha -->
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">08:00</td>
+            <td>P01</td>
+            <td>A12</td>
+            <td>Coleta</td>
+            <td>João Silva</td>
+            <td>ABC-1234</td>
+            <td>Transportes XYZ</td>
+            <td>20.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-001</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">09:30</td>
+            <td>P02</td>
+            <td>B05</td>
+            <td>Entrega</td>
+            <td>Maria Santos</td>
+            <td>DEF-5678</td>
+            <td>Logística ABC</td>
+            <td>15.000 kg</td>
+            <td>Pendente</td>
+            <td>OD-002</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">10:45</td>
+            <td>P03</td>
+            <td>C18</td>
+            <td>Coleta</td>
+            <td>Pedro Oliveira</td>
+            <td>GHI-9012</td>
+            <td>Transportes Rápido</td>
+            <td>25.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-003</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">11:20</td>
+            <td>P01</td>
+            <td>A07</td>
+            <td>Entrega</td>
+            <td>Ana Costa</td>
+            <td>JKL-3456</td>
+            <td>Logística Express</td>
+            <td>18.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-004</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">13:15</td>
+            <td>P04</td>
+            <td>B12</td>
+            <td>Coleta</td>
+            <td>Carlos Mendes</td>
+            <td>MNO-7890</td>
+            <td>Transportes Nacional</td>
+            <td>22.000 kg</td>
+            <td>Pendente</td>
+            <td>OD-005</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">14:30</td>
+            <td>P02</td>
+            <td>C03</td>
+            <td>Entrega</td>
+            <td>Fernanda Lima</td>
+            <td>PQR-1234</td>
+            <td>Logística Brasil</td>
+            <td>17.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-006</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">15:45</td>
+            <td>P03</td>
+            <td>A15</td>
+            <td>Coleta</td>
+            <td>Roberto Alves</td>
+            <td>STU-5678</td>
+            <td>Transportes Veloz</td>
+            <td>19.000 kg</td>
+            <td>Pendente</td>
+            <td>OD-007</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">16:20</td>
+            <td>P01</td>
+            <td>B08</td>
+            <td>Entrega</td>
+            <td>Juliana Rocha</td>
+            <td>VWX-9012</td>
+            <td>Logística Rápida</td>
+            <td>21.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-008</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">17:10</td>
+            <td>P04</td>
+            <td>C11</td>
+            <td>Coleta</td>
+            <td>Lucas Pereira</td>
+            <td>YZA-3456</td>
+            <td>Transportes Global</td>
+            <td>23.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-009</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">18:00</td>
+            <td>P02</td>
+            <td>A09</td>
+            <td>Entrega</td>
+            <td>Patrícia Nunes</td>
+            <td>BCD-7890</td>
+            <td>Logística Nacional</td>
+            <td>16.000 kg</td>
+            <td>Pendente</td>
+            <td>OD-010</td>
+          </tr>
+          <tr class="border-b border-gray-200 hover:bg-gray-50">
+            <td class="py-3">18:45</td>
+            <td>P03</td>
+            <td>B14</td>
+            <td>Coleta</td>
+            <td>Ricardo Souza</td>
+            <td>EFG-1234</td>
+            <td>Transportes Express</td>
+            <td>24.000 kg</td>
+            <td>Concluído</td>
+            <td>OD-011</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CARDS DE STATUS -->
+  <main>
+    <div class="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition">
+      <h2 class="font-semibold text-[clamp(1rem,1.5vw,1.6rem)] mb-5">Status das Operações</h2>
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-[clamp(1rem,1.5vw,1.6rem)] border-b text-gray-500 uppercase text-sm">
+            <th class="py-3">Tipo</th><th>Quantidade</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Coleta</td>
+            <td>6</td>
+            <td>
+              <span class="inline-flex items-center px-3 py-1 rounded-lg border text-[clamp(0.95rem,1.2vw,1.3rem)] font-semibold text-green-400 border-green-400">
+                <span class="w-3 h-3 mr-2 rounded-full bg-green-400"></span>
+                Ativo
+              </span>
+            </td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Entrega</td>
+            <td>5</td>
+            <td>
+              <span class="inline-flex items-center px-3 py-1 rounded-lg border text-[clamp(0.95rem,1.2vw,1.3rem)] font-semibold text-yellow-400 border-yellow-400">
+                <span class="w-3 h-3 mr-2 rounded-full bg-yellow-400"></span>
+                Parcial
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition">
+      <h2 class="font-semibold text-[clamp(1rem,1.5vw,1.6rem)] mb-5">Transportadoras</h2>
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-[clamp(1rem,1.5vw,1.6rem)] border-b text-gray-500 uppercase text-sm">
+            <th class="py-3">Transportadora</th><th>Veículos</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Transportes XYZ</td>
+            <td>2</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Logística ABC</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Transportes Rápido</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Logística Express</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Transportes Nacional</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Logística Brasil</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Transportes Veloz</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Logística Rápida</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Transportes Global</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>Logística Nacional</td>
+            <td>1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition">
+      <h2 class="font-semibold text-[clamp(1rem,1.5vw,1.6rem)] mb-5">Armazéns</h2>
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-[clamp(1rem,1.5vw,1.6rem)] border-b text-gray-500 uppercase text-sm">
+            <th class="py-3">Armazém</th><th>Movimentações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b hover:bg-gray-100">
+            <td>A12</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>B05</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>C18</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>A07</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>B12</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>C03</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>A15</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>B08</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>C11</td>
+            <td>1</td>
+          </tr>
+          <tr class="border-b hover:bg-gray-100">
+            <td>A09</td>
+            <td>1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- SCRIPT PARA ATUALIZAÇÃO AUTOMÁTICA -->
+  <script>
+    // Simulação de atualização de dados
+    function atualizarDados() {
+      // Em uma implementação real, aqui seria feita uma requisição para obter dados atualizados
+      console.log("Atualizando dados...");
+      
+      // Atualizar horário de última atualização
+      const agora = new Date();
+      document.getElementById('ultima-atualizacao').textContent = 
+        `Última atualização: ${agora.toLocaleTimeString('pt-BR')}`;
+    }
+
+    // Atualizar a cada 30 segundos
+    setInterval(atualizarDados, 30000);
+    
+    // Atualizar imediatamente ao carregar a página
+    document.addEventListener('DOMContentLoaded', atualizarDados);
+  </script>
+
+  <footer class="mt-12 text-center text-gray-500 text-sm">
+    <p id="ultima-atualizacao">Última atualização: Carregando...</p>
+    <p class="mt-2">Transcamila Rondonópolis - Sistema de Controle Operacional</p>
+  </footer>
+</body>
+</html>

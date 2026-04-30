@@ -1,0 +1,841 @@
+{% extends 'baserdn.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Dashboard Operacional - Agendamentos{% endblock %}
+
+{% block content %}
+<!-- Header com Filtros -->
+<div class="mb-8">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+    <div>
+      <h1 class="text-2xl font-medium text-slate-800">Dashboard Operacional</h1>
+      <p class="text-sm text-slate-500 mt-1">Análise em tempo real das operações</p>
+    </div>
+    <div class="flex items-center gap-3 text-sm text-slate-500">
+      <span class="flex items-center gap-2">
+        <i class="bi bi-clock text-slate-400 text-xs"></i>
+        {{ agora|date:"d/m/Y H:i" }}
+      </span>
+      <button onclick="location.reload()"
+        class="px-3 py-1.5 bg-white text-slate-700 rounded border border-slate-300 hover:bg-slate-50 text-sm font-normal flex items-center gap-2 transition-colors">
+        <i class="bi bi-arrow-clockwise text-xs"></i>
+        Atualizar
+      </button>
+      {% if is_monitor %}
+      <a href="{% url 'logout' %}"
+        class="px-3 py-1.5 bg-white text-red-600 rounded border border-red-300 hover:bg-red-50 text-sm font-normal flex items-center gap-2 transition-colors">
+        <i class="bi bi-box-arrow-right text-xs"></i>
+        Sair
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <form method="get" action="{% url 'rondonopolis:processos_dashboard' %}"
+    class="bg-white rounded border border-slate-200 p-5">
+    <!-- Campos de Data (sempre presentes no formulário) -->
+    <input type="hidden" name="data_inicio" id="data_inicio" value="{{ data_inicio|date:'Y-m-d' }}">
+    <input type="hidden" name="data_fim" id="data_fim" value="{{ data_fim|date:'Y-m-d' }}">
+    <!-- Granularidade (oculto, controlado automaticamente) -->
+    <input type="hidden" name="granularidade" id="granularidade-input" value="{{ granularidade }}">
+
+    <!-- Filtros e botões em uma linha -->
+    <div class="flex flex-wrap gap-4 items-end">
+      <!-- Seleção de Período -->
+      <div class="w-auto min-w-[150px]">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">Período</label>
+        <select id="periodo-select" name="periodo" onchange="setPeriodo(this.value)"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-sky-500 focus:border-sky-500">
+          <option value="hoje" {% if periodo_selecionado == 'hoje' %}selected{% endif %}>Hoje</option>
+          <option value="semana" {% if periodo_selecionado == 'semana' or not periodo_selecionado %}selected{% endif %}>
+            Esta Semana</option>
+          <option value="mes" {% if periodo_selecionado == 'mes' %}selected{% endif %}>Este Mês</option>
+          <option value="mes_anterior" {% if periodo_selecionado == 'mes_anterior' %}selected{% endif %}>Mês Anterior
+          </option>
+          <option value="ano" {% if periodo_selecionado == 'ano' %}selected{% endif %}>Este Ano</option>
+          <option value="personalizado" {% if periodo_selecionado == 'personalizado' %}selected{% endif %}>Personalizado
+          </option>
+        </select>
+      </div>
+
+      <!-- Campos de Data visíveis (apenas quando personalizado) -->
+      <div id="campos-data" class="hidden w-auto min-w-[150px]">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">Data Inicial</label>
+        <input type="date" id="data_inicio_visible"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+          onchange="document.getElementById('data_inicio').value = this.value; atualizarGranularidadePersonalizada();">
+      </div>
+      <div id="campos-data-fim" class="hidden w-auto min-w-[150px]">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">Data Final</label>
+        <input type="date" id="data_fim_visible"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-sky-500 focus:border-sky-500"
+          onchange="document.getElementById('data_fim').value = this.value; atualizarGranularidadePersonalizada();">
+      </div>
+
+      <!-- Filtro de Tipo -->
+      <div class="w-auto min-w-[120px]">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">
+          Tipo
+        </label>
+        <select name="tipo"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-sky-500 focus:border-sky-500">
+          <option value="">Todos</option>
+          <option value="coleta" {% if tipo_filtro == 'coleta' %}selected{% endif %}>Coleta</option>
+          <option value="entrega" {% if tipo_filtro == 'entrega' %}selected{% endif %}>Entrega</option>
+        </select>
+      </div>
+
+      <!-- Filtro de Transportadora -->
+      <div class="flex-1 min-w-[200px] max-w-[300px]">
+        <label class="block text-xs font-medium text-slate-600 mb-1.5">
+          Transportadora
+        </label>
+        <select name="transportadora"
+          class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-sky-500 focus:border-sky-500">
+          <option value="">Todas</option>
+          {% for transportadora in transportadoras %}
+          <option value="{{ transportadora.id }}" {% if transportadora_filtro == transportadora.id|stringformat:"s" %}selected{% endif %}>
+            {{ transportadora.nome }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Botões -->
+      <div class="flex-shrink-0 flex gap-2">
+        <button type="submit"
+          class="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 text-sm font-normal transition-colors">
+          Filtrar
+        </button>
+        <a href="{% url 'rondonopolis:processos_dashboard' %}"
+          class="px-4 py-2 bg-white text-slate-700 rounded border border-slate-300 hover:bg-slate-50 text-sm font-normal transition-colors">
+          Limpar
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+  <!-- Total de Agendamentos -->
+  <div class="bg-white rounded border border-slate-200 p-5">
+    <div class="flex items-start justify-between">
+      <div class="flex-1">
+        <p class="text-xs font-medium text-slate-500 mb-2">Total de Agendamentos</p>
+        <p class="text-3xl font-normal text-slate-800">{{ total_agendamentos }}</p>
+      </div>
+      <div class="text-sky-600 opacity-60">
+        <i class="bi bi-calendar-check text-xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Peso Total -->
+  <div class="bg-white rounded border border-slate-200 p-5">
+    <div class="flex items-start justify-between">
+      <div class="flex-1">
+        <p class="text-xs font-medium text-slate-500 mb-2">Peso Total</p>
+        <p class="text-3xl font-normal text-slate-800 mb-1">{{ peso_total_kg|floatformat:0|intcomma }} <span
+            class="text-lg text-slate-500">kg</span></p>
+      </div>
+      <div class="text-sky-600 opacity-60">
+        <i class="bi bi-box-seam text-xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total de Coletas -->
+  <div class="bg-white rounded border border-slate-200 p-5">
+    <div class="flex items-start justify-between">
+      <div class="flex-1">
+        <p class="text-xs font-medium text-slate-500 mb-2">Total de Coletas</p>
+        <p class="text-3xl font-normal text-slate-800">{{ coleta_total }}</p>
+      </div>
+      <div class="text-sky-600 opacity-60">
+        <i class="bi bi-box-arrow-in-down text-xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total de Entregas -->
+  <div class="bg-white rounded border border-slate-200 p-5">
+    <div class="flex items-start justify-between">
+      <div class="flex-1">
+        <p class="text-xs font-medium text-slate-500 mb-2">Total de Entregas</p>
+        <p class="text-3xl font-normal text-slate-800">{{ entrega_total }}</p>
+      </div>
+      <div class="text-sky-600 opacity-60">
+        <i class="bi bi-box-arrow-up text-xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Taxa de Conclusão -->
+  <div class="bg-white rounded border border-slate-200 p-5">
+    <div class="flex items-start justify-between">
+      <div class="flex-1">
+        <p class="text-xs font-medium text-slate-500 mb-2">Taxa de Conclusão</p>
+        <p class="text-3xl font-normal text-slate-800">{{ taxa_conclusao }}<span class="text-lg text-slate-500">%</span>
+        </p>
+        <p class="text-xs text-slate-400 mt-1">{{ processos_concluidos }} de {{ total_agendamentos }}</p>
+      </div>
+      <div class="text-sky-600 opacity-60">
+        <i class="bi bi-check-circle text-xl"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficos -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <!-- Gráfico 1: Agendamentos por Período -->
+  <div class="bg-white rounded border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-sm font-medium text-slate-700">
+        Quantidade de Agendamentos
+        {% if granularidade == 'dia' %}por Dia
+        {% elif granularidade == 'mes' %}por Mês
+        {% elif granularidade == 'ano' %}por Ano
+        {% endif %}
+      </h3>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartDiario"></canvas>
+    </div>
+    <div id="chartDiarioFallback" class="hidden text-center text-slate-400 py-12">
+      <p class="text-sm">Nenhum dado disponível</p>
+    </div>
+  </div>
+
+  <!-- Gráfico 2: Por Transportadora -->
+  <div class="bg-white rounded border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-sm font-medium text-slate-700">Por Transportadora</h3>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartTransportadoras"></canvas>
+    </div>
+    <div id="chartTransportadorasFallback" class="hidden text-center text-slate-400 py-12">
+      <p class="text-sm">Nenhum dado disponível</p>
+    </div>
+  </div>
+</div>
+
+<!-- Tabelas de Tempos Médios - Separadas por Tipo -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <!-- Tempos Médios - Coleta -->
+  <div class="bg-white rounded border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-sm font-medium text-slate-700">Tempo Médio entre Operações - Coleta</h3>
+      <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Coleta</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200">
+            <th class="text-left py-3 px-4 font-medium text-slate-600">Etapa</th>
+            <th class="text-right py-3 px-4 font-medium text-slate-600">Tempo Médio</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Portaria → Checklist</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_coleta_portaria_checklist.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_coleta_portaria_checklist.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Checklist → Armazém</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_coleta_checklist_armazem.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_coleta_checklist_armazem.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Operação Armazém (Duração)</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_coleta_armazem_operacao.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_coleta_armazem_operacao.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Armazém → Documentos</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_coleta_armazem_documentos.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_coleta_armazem_documentos.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr class="bg-slate-50">
+            <td class="py-3 px-4 text-slate-800 font-medium">Tempo Total do Processo</td>
+            <td class="py-3 px-4 text-right text-slate-900 font-semibold">
+              {% if tempo_medio_coleta_total.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_coleta_total.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tempos Médios - Entrega -->
+  <div class="bg-white rounded border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-sm font-medium text-slate-700">Tempo Médio entre Operações - Entrega</h3>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Entrega</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200">
+            <th class="text-left py-3 px-4 font-medium text-slate-600">Etapa</th>
+            <th class="text-right py-3 px-4 font-medium text-slate-600">Tempo Médio</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Portaria → Armazém</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_entrega_portaria_armazem.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_entrega_portaria_armazem.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Operação Armazém (Duração)</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_entrega_armazem_operacao.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_entrega_armazem_operacao.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="py-3 px-4 text-slate-700">Armazém → Documentos</td>
+            <td class="py-3 px-4 text-right text-slate-800 font-medium">
+              {% if tempo_medio_entrega_armazem_documentos.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_entrega_armazem_documentos.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr class="bg-slate-50">
+            <td class="py-3 px-4 text-slate-800 font-medium">Tempo Total do Processo</td>
+            <td class="py-3 px-4 text-right text-slate-900 font-semibold">
+              {% if tempo_medio_entrega_total.texto != '-' %}
+              <span class="font-mono">{{ tempo_medio_entrega_total.texto }}</span>
+              {% else %}
+              <span class="text-slate-400">-</span>
+              {% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+  }
+
+  canvas {
+    display: block;
+    max-width: 100%;
+    height: 100% !important;
+  }
+
+  .hidden {
+    display: none;
+  }
+</style>
+
+<script>
+  function setPeriodo(periodo) {
+    const hoje = new Date();
+    const dataInicio = document.getElementById('data_inicio');
+    const dataFim = document.getElementById('data_fim');
+    const dataInicioVisible = document.getElementById('data_inicio_visible');
+    const dataFimVisible = document.getElementById('data_fim_visible');
+    const camposData = document.getElementById('campos-data');
+    const camposDataFim = document.getElementById('campos-data-fim');
+    const granularidadeInput = document.getElementById('granularidade-input');
+
+    let inicio, fim, granularidade;
+
+    switch (periodo) {
+      case 'hoje':
+        inicio = new Date(hoje);
+        fim = new Date(hoje);
+        granularidade = 'dia';
+        camposData.classList.add('hidden');
+        camposDataFim.classList.add('hidden');
+        break;
+      case 'semana':
+        // Início da semana (domingo)
+        inicio = new Date(hoje);
+        inicio.setDate(hoje.getDate() - hoje.getDay());
+        fim = new Date(hoje);
+        granularidade = 'dia';
+        camposData.classList.add('hidden');
+        camposDataFim.classList.add('hidden');
+        break;
+      case 'mes':
+        // Primeiro dia do mês atual
+        inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        fim = new Date(hoje);
+        granularidade = 'dia';
+        camposData.classList.add('hidden');
+        camposDataFim.classList.add('hidden');
+        break;
+      case 'mes_anterior':
+        // Primeiro e último dia do mês anterior
+        inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+        fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+        granularidade = 'dia';
+        camposData.classList.add('hidden');
+        camposDataFim.classList.add('hidden');
+        break;
+      case 'ano':
+        // Primeiro dia do ano atual
+        inicio = new Date(hoje.getFullYear(), 0, 1);
+        fim = new Date(hoje);
+        granularidade = 'mes';
+        camposData.classList.add('hidden');
+        camposDataFim.classList.add('hidden');
+        break;
+      case 'personalizado':
+        camposData.classList.remove('hidden');
+        camposDataFim.classList.remove('hidden');
+        // Sincronizar valores dos campos visíveis com os ocultos
+        if (dataInicioVisible && dataInicio.value) {
+          dataInicioVisible.value = dataInicio.value;
+        }
+        if (dataFimVisible && dataFim.value) {
+          dataFimVisible.value = dataFim.value;
+        }
+        // Calcular granularidade baseado nas datas selecionadas
+        if (dataInicio.value && dataFim.value) {
+          const inicioDate = new Date(dataInicio.value);
+          const fimDate = new Date(dataFim.value);
+          const diffDias = Math.abs((fimDate - inicioDate) / (1000 * 60 * 60 * 24));
+          granularidade = diffDias > 60 ? 'mes' : 'dia';
+        } else {
+          granularidade = 'dia'; // Padrão
+        }
+        granularidadeInput.value = granularidade;
+        return; // Não definir datas, deixar usuário escolher
+    }
+
+    // Formatar datas para YYYY-MM-DD (usar método que evita problemas de fuso horário)
+    const ano = inicio.getFullYear();
+    const mes = String(inicio.getMonth() + 1).padStart(2, '0');
+    const dia = String(inicio.getDate()).padStart(2, '0');
+    const dataInicioStr = `${ano}-${mes}-${dia}`;
+
+    const anoFim = fim.getFullYear();
+    const mesFim = String(fim.getMonth() + 1).padStart(2, '0');
+    const diaFim = String(fim.getDate()).padStart(2, '0');
+    const dataFimStr = `${anoFim}-${mesFim}-${diaFim}`;
+
+    dataInicio.value = dataInicioStr;
+    dataFim.value = dataFimStr;
+    granularidadeInput.value = granularidade;
+
+    // Debug temporário
+    console.log('setPeriodo:', {
+      periodo: periodo,
+      dataInicio: dataInicioStr,
+      dataFim: dataFimStr,
+      granularidade: granularidade
+    });
+
+    // NÃO submeter automaticamente - deixar usuário clicar em Filtrar
+    // Isso garante que os valores sejam definidos corretamente antes do submit
+  }
+
+  // Função para atualizar granularidade quando datas personalizadas mudarem
+  function atualizarGranularidadePersonalizada() {
+    const periodoSelect = document.getElementById('periodo-select');
+    if (periodoSelect && periodoSelect.value === 'personalizado') {
+      const dataInicio = document.getElementById('data_inicio');
+      const dataFim = document.getElementById('data_fim');
+      const dataInicioVisible = document.getElementById('data_inicio_visible');
+      const dataFimVisible = document.getElementById('data_fim_visible');
+      const granularidadeInput = document.getElementById('granularidade-input');
+
+      // Sincronizar campos visíveis com campos ocultos
+      if (dataInicioVisible && dataInicioVisible.value) {
+        dataInicio.value = dataInicioVisible.value;
+      }
+      if (dataFimVisible && dataFimVisible.value) {
+        dataFim.value = dataFimVisible.value;
+      }
+
+      if (dataInicio.value && dataFim.value && granularidadeInput) {
+        const inicio = new Date(dataInicio.value);
+        const fim = new Date(dataFim.value);
+        const diffDias = Math.abs((fim - inicio) / (1000 * 60 * 60 * 24));
+        granularidadeInput.value = diffDias > 60 ? 'mes' : 'dia';
+      }
+    }
+  }
+
+  // Detectar período atual ao carregar a página
+  document.addEventListener('DOMContentLoaded', function () {
+    const periodoSelect = document.getElementById('periodo-select');
+    const dataInicio = document.getElementById('data_inicio');
+    const dataFim = document.getElementById('data_fim');
+    const camposData = document.getElementById('campos-data');
+    const camposDataFim = document.getElementById('campos-data-fim');
+    const granularidadeInput = document.getElementById('granularidade-input');
+    const granularidadeAtual = granularidadeInput ? granularidadeInput.value : 'dia';
+
+    if (!dataInicio || !dataFim || !periodoSelect) return;
+
+    const dataInicioVal = dataInicio ? dataInicio.value.trim() : '';
+    const dataFimVal = dataFim ? dataFim.value.trim() : '';
+    const dataInicioVisible = document.getElementById('data_inicio_visible');
+    const dataFimVisible = document.getElementById('data_fim_visible');
+
+    // Log inicial
+    console.log('🔍 Iniciando detecção:', {
+      dataInicioVal: dataInicioVal,
+      dataFimVal: dataFimVal
+    });
+
+    // Formatar hoje sem problemas de fuso horário
+    const hojeObj = new Date();
+    const hojeAno = hojeObj.getFullYear();
+    const hojeMes = String(hojeObj.getMonth() + 1).padStart(2, '0');
+    const hojeDia = String(hojeObj.getDate()).padStart(2, '0');
+    const hoje = `${hojeAno}-${hojeMes}-${hojeDia}`;
+
+    // Primeiro dia do mês atual
+    const primeiroDiaMes = new Date(hojeObj.getFullYear(), hojeObj.getMonth(), 1);
+    const primeiroDiaMesStr = `${primeiroDiaMes.getFullYear()}-${String(primeiroDiaMes.getMonth() + 1).padStart(2, '0')}-${String(primeiroDiaMes.getDate()).padStart(2, '0')}`;
+
+    // Último dia do mês anterior
+    const ultimoDiaMesAnterior = new Date(hojeObj.getFullYear(), hojeObj.getMonth(), 0);
+    const ultimoDiaMesAnteriorStr = `${ultimoDiaMesAnterior.getFullYear()}-${String(ultimoDiaMesAnterior.getMonth() + 1).padStart(2, '0')}-${String(ultimoDiaMesAnterior.getDate()).padStart(2, '0')}`;
+
+    // Primeiro dia do mês anterior
+    const primeiroDiaMesAnterior = new Date(hojeObj.getFullYear(), hojeObj.getMonth() - 1, 1);
+    const primeiroDiaMesAnteriorStr = `${primeiroDiaMesAnterior.getFullYear()}-${String(primeiroDiaMesAnterior.getMonth() + 1).padStart(2, '0')}-${String(primeiroDiaMesAnterior.getDate()).padStart(2, '0')}`;
+
+    // Primeiro dia do ano atual
+    const primeiroDiaAno = new Date(hojeObj.getFullYear(), 0, 1);
+    const primeiroDiaAnoStr = `${primeiroDiaAno.getFullYear()}-${String(primeiroDiaAno.getMonth() + 1).padStart(2, '0')}-${String(primeiroDiaAno.getDate()).padStart(2, '0')}`;
+
+    // Início da semana (domingo)
+    const inicioSemana = new Date(hojeObj);
+    inicioSemana.setDate(hojeObj.getDate() - hojeObj.getDay());
+    const inicioSemanaStr = `${inicioSemana.getFullYear()}-${String(inicioSemana.getMonth() + 1).padStart(2, '0')}-${String(inicioSemana.getDate()).padStart(2, '0')}`;
+
+    // Verificar qual período corresponde (verificar do mais específico para o menos específico)
+    // IMPORTANTE: Verificar primeiro os casos mais específicos para evitar falsos positivos
+
+    // Primeiro verificar "Mês Anterior" (muito específico - data_inicio e data_fim específicas)
+    if (dataInicioVal === primeiroDiaMesAnteriorStr && dataFimVal === ultimoDiaMesAnteriorStr) {
+      periodoSelect.value = 'mes_anterior';
+      granularidadeInput.value = 'dia';
+    }
+    // Depois verificar "Este Ano" (verifica granularidade também)
+    else if (dataInicioVal === primeiroDiaAnoStr && dataFimVal === hoje && granularidadeAtual === 'mes') {
+      periodoSelect.value = 'ano';
+      granularidadeInput.value = 'mes';
+    }
+    // Depois verificar "Esta Semana" (inicio específico, fim = hoje)
+    else if (dataInicioVal === inicioSemanaStr && dataFimVal === hoje) {
+      periodoSelect.value = 'semana';
+      granularidadeInput.value = 'dia';
+    }
+    // Depois verificar "Este Mês" (inicio = primeiro dia do mês, fim = hoje)
+    else if (dataInicioVal === primeiroDiaMesStr && dataFimVal === hoje) {
+      periodoSelect.value = 'mes';
+      granularidadeInput.value = 'dia';
+    }
+    // Por último verificar "Hoje" (inicio = hoje E fim = hoje) - menos específico, verificar por último
+    else if (dataInicioVal === hoje && dataFimVal === hoje) {
+      periodoSelect.value = 'hoje';
+      granularidadeInput.value = 'dia';
+    }
+    // Se não corresponder a nenhum padrão, considerar personalizado
+    else {
+      periodoSelect.value = 'personalizado';
+      camposData.classList.remove('hidden');
+      camposDataFim.classList.remove('hidden');
+      // Sincronizar campos visíveis
+      if (dataInicioVisible && dataInicioVal) {
+        dataInicioVisible.value = dataInicioVal;
+      }
+      if (dataFimVisible && dataFimVal) {
+        dataFimVisible.value = dataFimVal;
+      }
+      atualizarGranularidadePersonalizada();
+    }
+
+    // Debug temporário - REMOVER DEPOIS
+    console.log('🔍 Detecção período:', {
+      'dataInicio': dataInicioVal,
+      'dataFim': dataFimVal,
+      'hoje': hoje,
+      'primeiroDiaMes': primeiroDiaMesStr,
+      'igualMes?': dataInicioVal === primeiroDiaMesStr && dataFimVal === hoje,
+      'inicioSemana': inicioSemanaStr,
+      'igualSemana?': dataInicioVal === inicioSemanaStr && dataFimVal === hoje,
+      'igualHoje?': dataInicioVal === hoje && dataFimVal === hoje,
+      'periodoDetectado': periodoSelect.value
+    });
+
+    // Se período for personalizado, mostrar campos de data e sincronizar
+    if (periodoSelect.value === 'personalizado') {
+      if (camposData) camposData.classList.remove('hidden');
+      if (camposDataFim) camposDataFim.classList.remove('hidden');
+
+      const dataInicio = document.getElementById('data_inicio');
+      const dataFim = document.getElementById('data_fim');
+
+      // Sincronizar valores
+      if (dataInicioVisible && dataInicio && dataInicio.value) {
+        dataInicioVisible.value = dataInicio.value;
+      }
+      if (dataFimVisible && dataFim && dataFim.value) {
+        dataFimVisible.value = dataFim.value;
+      }
+
+      // Adicionar listeners para atualizar granularidade quando datas mudarem
+      if (dataInicioVisible) {
+        dataInicioVisible.addEventListener('change', atualizarGranularidadePersonalizada);
+      }
+      if (dataFimVisible) {
+        dataFimVisible.addEventListener('change', atualizarGranularidadePersonalizada);
+      }
+    }
+  });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Sistema de carregamento robusto do Chart.js
+  function loadChartJS(callback) {
+    if (typeof Chart !== 'undefined') {
+      console.log('✅ Chart.js já está disponível');
+      if (callback) callback();
+      return;
+    }
+
+    const localScript = document.createElement('script');
+    localScript.src = "{% static 'js/rondonopolis/chart.js' %}";
+    localScript.onload = function () {
+      console.log('✅ Chart.js local carregado com sucesso');
+      if (callback) callback();
+    };
+    localScript.onerror = function () {
+      console.log('❌ Chart.js local falhou, usando CDN...');
+      const cdnScript = document.createElement('script');
+      cdnScript.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.js';
+      cdnScript.onload = function () {
+        console.log('✅ Chart.js CDN carregado com sucesso');
+        if (callback) callback();
+      };
+      cdnScript.onerror = function () {
+        console.log('❌ Falha ao carregar Chart.js de todas as fontes');
+        mostrarFallbacks();
+      };
+      document.head.appendChild(cdnScript);
+    };
+    document.head.appendChild(localScript);
+  }
+
+  function mostrarFallbacks() {
+    document.querySelectorAll('[id$="Fallback"]').forEach(fallback => {
+      fallback.classList.remove('hidden');
+    });
+  }
+
+  function criarGraficos() {
+    console.log('🔄 Iniciando criação de gráficos...');
+
+    if (typeof Chart === 'undefined') {
+      console.error('❌ Chart.js não disponível');
+      mostrarFallbacks();
+      return;
+    }
+
+    try {
+      Chart.defaults.font.family = 'Inter, system-ui, -apple-system, sans-serif';
+      Chart.defaults.plugins.tooltip.padding = 12;
+      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      Chart.defaults.plugins.tooltip.titleColor = '#fff';
+      Chart.defaults.plugins.tooltip.bodyColor = '#fff';
+
+      const coresSistema = ['#0ea5e9', '#06b6d4', '#0891b2', '#0284c7', '#0369a1', '#075985', '#0c4a6e', '#082f49'];
+
+      // Parse dos dados Django
+      const dadosPeriodo = JSON.parse('{{ dados_periodo|escapejs }}');
+      const dadosTransportadoras = JSON.parse('{{ dados_transportadoras|escapejs }}');
+      const granularidade = '{{ granularidade }}';
+
+      console.log('📊 Dados carregados:', {
+        periodo: dadosPeriodo,
+        transportadoras: dadosTransportadoras,
+        granularidade: granularidade
+      });
+
+      // Determinar título do gráfico baseado na granularidade
+      let tituloGrafico = 'Agendamentos por Dia';
+      if (granularidade === 'mes') {
+        tituloGrafico = 'Agendamentos por Mês';
+      } else if (granularidade === 'ano') {
+        tituloGrafico = 'Agendamentos por Ano';
+      }
+
+      // Gráfico 1: Agendamentos por Período (Line)
+      const ctxDiario = document.getElementById('chartDiario');
+      if (ctxDiario && dadosPeriodo.labels.length > 0) {
+        try {
+          new Chart(ctxDiario, {
+            type: 'line',
+            data: {
+              labels: dadosPeriodo.labels,
+              datasets: [{
+                label: 'Agendamentos',
+                data: dadosPeriodo.valores,
+                borderColor: '#0ea5e9',
+                backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#0ea5e9',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1
+                  }
+                }
+              }
+            }
+          });
+          console.log('✅ Gráfico Diário criado');
+        } catch (error) {
+          console.error('❌ Erro no gráfico Diário:', error);
+          document.getElementById('chartDiarioFallback').classList.remove('hidden');
+        }
+      }
+
+      // Gráfico 2: Transportadoras (Bar)
+      const ctxTransportadoras = document.getElementById('chartTransportadoras');
+      if (ctxTransportadoras && dadosTransportadoras.labels.length > 0) {
+        try {
+          const labelsEncurtados = dadosTransportadoras.labels.map(label =>
+            label.length > 20 ? label.substring(0, 17) + '...' : label
+          );
+
+          new Chart(ctxTransportadoras, {
+            type: 'bar',
+            data: {
+              labels: labelsEncurtados,
+              datasets: [{
+                data: dadosTransportadoras.valores,
+                backgroundColor: '#0ea5e9',
+                borderRadius: 4
+              }]
+            },
+            options: {
+              indexAxis: 'y',
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  callbacks: {
+                    title: function (tooltipItems) {
+                      const index = tooltipItems[0].dataIndex;
+                      return dadosTransportadoras.labels[index];
+                    }
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1
+                  }
+                }
+              }
+            }
+          });
+          console.log('✅ Gráfico Transportadoras criado');
+        } catch (error) {
+          console.error('❌ Erro no gráfico Transportadoras:', error);
+          document.getElementById('chartTransportadorasFallback').classList.remove('hidden');
+        }
+      }
+
+      console.log('🎉 Todos os gráficos processados com sucesso!');
+
+    } catch (error) {
+      console.error('💥 Erro geral na criação de gráficos:', error);
+      mostrarFallbacks();
+    }
+  }
+
+  // Inicialização quando a página carrega
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log('🚀 DOM carregado, iniciando carregamento do Chart.js...');
+    loadChartJS(criarGraficos);
+  });
+
+  // Fallback: se algo der errado, tentar novamente após 3 segundos
+  setTimeout(() => {
+    if (typeof Chart === 'undefined') {
+      console.log('🕒 Timeout: tentando recarregar Chart.js...');
+      loadChartJS(criarGraficos);
+    }
+  }, 3000);
+</script>
+{% endblock %}

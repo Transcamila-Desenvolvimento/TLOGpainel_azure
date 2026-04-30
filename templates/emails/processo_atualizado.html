@@ -1,0 +1,201 @@
+{% load tz %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <title>{{ agendamento.motorista.nome }} - {{ agendamento.placa_veiculo }}</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family:Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc; padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0"
+          style="background-color:#ffffff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding:40px 24px 16px;">
+              <img
+                src="https://res.cloudinary.com/dfh2plz7g/image/upload/v1759941217/Transcamila_Logo_Atualizada-removebg-preview_lcbfbt.png"
+                alt="Transcamila Luft Logistics" style="max-width:220px; height:auto;">
+            </td>
+          </tr>
+
+          <!-- Cabeçalho -->
+          <tr>
+            <td align="center" style="padding:0 32px 24px;">
+              <h2 style="font-size:18px; color:#1e293b; margin:0; font-weight:600;">{{ agendamento.motorista.nome }} -
+                {{ agendamento.placa_veiculo }}</h2>
+              <p style="font-size:14px; color:#64748b; margin:6px 0 0;">Ordem: <strong>{{ agendamento.ordem }}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Informações do Agendamento -->
+          <tr>
+            <td style="padding:0 32px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="background-color:#f8fafc; border-radius:8px; padding:16px;">
+                <tr>
+                  <td style="font-size:14px; color:#1e293b; line-height:22px;">
+                    <strong>Motorista:</strong> {{ agendamento.motorista.nome }}<br>
+                    <strong>Placa:</strong> {{ agendamento.placa_veiculo }}<br>
+                    <strong>Tipo:</strong> {{ agendamento.get_tipo_display }}<br>
+                    <strong>Transportadora:</strong> {{ agendamento.transportadora.nome }}<br>
+                    <strong>Data Agendada:</strong> {{ agendamento.data_agendada|date:"d/m/Y" }} às
+                    {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                    <span
+                      style="display: inline-block; padding: 2px 8px; background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; border-radius: 4px; font-size: 11px; font-weight: 600;">ENCAIXE</span>
+                    {% else %}
+                    {{ agendamento.horario_agendado|time:"H:i" }}
+                    {% endif %}<br>
+                    <strong>Peso:</strong> {{ agendamento.peso }} kg<br>
+                    <strong>Tipo Veículo:</strong> {{ agendamento.get_tipo_veiculo_display }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Linha de tempo das Etapas (Portaria, Checklist, Armazém, Documentos) -->
+          <tr>
+            <td style="padding:32px 48px 24px;">
+              {% for etapa in etapas %}
+              {% if etapa.nome == 'Portaria' or etapa.nome == 'CheckList' or etapa.nome == 'Armazém' or etapa.nome == 'Documentos' %}
+              {% with is_proxima_pendente=etapa.is_proxima_pendente %}
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="border-collapse:collapse; margin-top:{% if not forloop.first %}20px{% else %}0{% endif %};">
+                <tr>
+                  <td width="36" align="center" valign="top">
+                    {% if etapa.concluida %}
+                    <div
+                      style="width:14px; height:14px; background-color:#10b981; border-radius:50%; border:3px solid #a7f3d0; margin:0 auto;">
+                    </div>
+                    {% else %}
+                    {% if forloop.counter0 == 0 %}
+                    <div
+                      style="width:14px; height:14px; background-color:#f59e0b; border-radius:50%; border:3px solid #fde68a; margin:0 auto;">
+                    </div>
+                    {% elif is_proxima_pendente %}
+                    <div
+                      style="width:14px; height:14px; background-color:#f59e0b; border-radius:50%; border:3px solid #fde68a; margin:0 auto;">
+                    </div>
+                    {% else %}
+                    <div
+                      style="width:14px; height:14px; background-color:#ffffff; border-radius:50%; border:2px solid #d1d5db; margin:0 auto;">
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% if etapa.nome != 'Armazém' %}
+                    <div style="width:2px; background-color:#d1d5db; height:50px; margin:6px auto;"></div>
+                    {% endif %}
+                  </td>
+                  <td valign="top"
+                    style="padding-left:14px; padding:8px 12px; border-radius:6px; background-color:{% if etapa.concluida %}#d1fae5{% elif is_proxima_pendente %}#fef3c7{% else %}#ffffff{% endif %}; border-left:3px solid {% if etapa.concluida %}#10b981{% elif is_proxima_pendente %}#f59e0b{% else %}#d1d5db{% endif %}; color:{% if etapa.concluida %}#065f46{% elif is_proxima_pendente %}#92400e{% else %}#64748b{% endif %}; font-size:14px; line-height:22px;">
+                    <strong>{{ etapa.nome }}</strong>
+                    {% if etapa.nome == 'Portaria' and etapa.concluida %}
+                    <br>
+                    {% timezone "America/Cuiaba" %}
+                    <span style="color:#047857;">Motorista {{ agendamento.motorista.nome }} liberado na portaria</span>
+                    {% if etapa.usuario %}
+                    pelo usuário <strong>{{ etapa.usuario }}</strong>
+                    {% endif %}
+                    {% if etapa.data %}
+                    às {{ etapa.data|date:"H:i" }}
+                    {% endif %}
+                    {% endtimezone %}
+                    {% elif etapa.nome == 'CheckList' and etapa.concluida %}
+                    <br>
+                    <span style="color:#047857;">CheckList concluído e preenchido por <strong>{{ etapa.usuario }}</strong></span>
+                    {% if etapa.numero %}
+                    <br><span style="color:#065f46;">Nº: {{ etapa.numero }}</span>
+                    {% endif %}
+                    {% elif etapa.nome == 'Armazém' and etapa.concluida %}
+                    <br>
+                    <span style="color:#047857;">O usuário <strong>{{ etapa.usuario }}</strong> confirmou a chegada do
+                      motorista <strong>{{ agendamento.motorista.nome }}</strong> para <strong>{{ agendamento.get_tipo_display|lower }}</strong> no armazém</span>
+                    {% elif etapa.concluida %}
+                    <br>
+                    <span style="color:#047857;">✓ Concluída</span>
+                    {% if etapa.data %}
+                    em {{ etapa.data|date:"d/m/Y" }} às {{ etapa.data|time:"H:i" }}
+                    {% endif %}
+                    {% if etapa.usuario %}
+                    por <strong>{{ etapa.usuario }}</strong>
+                    {% endif %}
+                    {% elif is_proxima_pendente %}
+                    <br><span style="color:#b45309; font-weight:600;">Aguardando conclusão</span>
+                    {% else %}
+                    <br><em style="color:#64748b;">Pendente</em>
+                    {% endif %}
+                  </td>
+                </tr>
+              </table>
+              {% endwith %}
+              {% endif %}
+              {% endfor %}
+            </td>
+          </tr>
+
+          {# Onda (Seção Separada) - APENAS PARA COLETA #}
+          {# Onda / OD (Seção Separada) - PARA AMBOS #}
+          <tr>
+            <td style="padding:0 32px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="background-color:#f0f9ff; border-left:4px solid #3b82f6; border-radius:4px; padding:16px;">
+                <tr>
+                  <td style="font-size:14px; color:#1e293b; line-height:22px;">
+                    <strong style="color:#3b82f6; font-size:15px;">{% if agendamento.tipo == 'coleta' %}Onda{% else %}OD{% endif %}:</strong><br>
+                    {% if agendamento.onda_liberacao %}
+                    {% timezone "America/Cuiaba" %}
+                    <span style="color:#10b981; font-weight:600;">✓ Liberada</span>
+                    {% if agendamento.onda_liberado_por %}
+                    por <strong>{{ agendamento.onda_liberado_por.get_full_name|default:agendamento.onda_liberado_por.username }}</strong>
+                    {% endif %}
+                    em {{ agendamento.onda_liberacao|date:"d/m/Y" }} às {{ agendamento.onda_liberacao|time:"H:i" }}
+                    {% endtimezone %}
+                    {% else %}
+                    <em style="color:#f59e0b; font-weight:500;">Pendente de liberação</em>
+                    {% endif %}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Observações -->
+          {% if agendamento.observacoes %}
+          <tr>
+            <td style="padding:0 32px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="background-color:#fef3c7; border-left:4px solid #f59e0b; border-radius:4px; padding:12px;">
+                <tr>
+                  <td style="font-size:13px; color:#92400e;">
+                    <strong>Observações:</strong><br>
+                    {{ agendamento.observacoes }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          {% endif %}
+
+          <!-- Rodapé -->
+          <tr>
+            <td align="center" style="background-color:#f8fafc; border-top:1px solid #e2e8f0; padding:20px 0;">
+              <p style="font-size:12px; color:#94a3b8; margin:0;">TLOGpainel — ©2025 Transcamila Cargas e Armazéns
+                Gerais LTDA
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>

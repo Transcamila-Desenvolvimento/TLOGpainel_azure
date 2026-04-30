@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+
+{% block title %}Processos Finalizados - Operação Santos{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<form id="batch-form" method="post" action="{% url 'acoes_em_lote' %}">
+  {% csrf_token %}
+  <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-6 bg-sky-600"></span>
+      <h1 class="text-2xl font-semibold text-gray-900">Processos Finalizados</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <select id="acao" name="acao" class="border border-gray-300 rounded px-3 py-2 text-sm" required>
+        <option value="">Ação em lote</option>
+        <option value="excluir">Excluir selecionados</option>
+        <option value="alterar_status">Reabrir Processos</option>
+      </select>
+      <select id="novo-status" name="novo_status" class="border border-gray-300 rounded px-3 py-2 text-sm hidden">
+        <option value="">Status para reabertura</option>
+        <option value="Aguardando">Aguardando</option>
+        <option value="Liberado">Liberado</option>
+      </select>
+      <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded text-sm shadow">
+        Aplicar
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="bg-white rounded-md overflow-hidden">
+    <table class="min-w-full text-[15px]">
+      <thead>
+        <tr class="text-gray-800 text-sm border-b border-gray-200 uppercase tracking-wide">
+          <th class="py-3 px-4 text-left font-medium">
+            <input type="checkbox" id="select-all" class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500">
+          </th>
+          <th class="py-3 px-4 text-left font-medium relative">
+            <div class="flex items-center gap-2">
+              <span>PROCESSO</span>
+              <div class="relative w-28">
+                <input type="text" id="processoFilterInput" placeholder="Filtrar..."
+                      class="text-xs border border-gray-300 rounded px-2 py-1 w-full focus:ring-blue-500 focus:border-blue-500 pl-7 h-8">
+                <i class="bi bi-search absolute left-2 top-2 text-gray-400 text-xs"></i>
+              </div>
+            </div>
+          </th>
+          <th class="py-3 px-4 text-left font-medium relative">
+            <div class="flex items-center gap-1">
+              DESTINO
+              <button id="destinoFilterButton" class="w-5 h-5 flex items-center justify-center border border-gray-300 rounded bg-white shadow-inner">
+                <i class="bi bi-caret-down-fill text-gray-500 text-[10px]"></i>
+              </button>
+            </div>
+          </th>
+          <th class="py-3 px-4 text-left font-medium">QUANTIDADE</th>
+          <th class="py-3 px-4 text-left font-medium">DATA DE CRIAÇÃO</th>
+          <th class="py-3 px-4 text-left font-medium">OBSERVAÇÃO</th>
+          <th class="py-3 px-4 text-left font-medium">STATUS</th>
+        </tr>
+      </thead>
+      <tbody id="lancamentosTableBody">
+        {% for lancamento in lancamentos %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50" data-destino="{{ lancamento.destino.id }}" data-processo="{{ lancamento.po|lower }}">
+          <td class="py-4 px-4">
+            <input type="checkbox" name="selecionados" value="{{ lancamento.id }}" class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500">
+          </td>
+          <td class="py-4 px-4 font-medium text-gray-900">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 bg-sky-600 rounded-full"></span>
+              {{ lancamento.po }}
+            </div>
+          </td>
+          <td class="py-4 px-4 text-gray-800">{{ lancamento.destino.nome }}</td>
+          <td class="py-4 px-4">{{ lancamento.quantidade }}</td>
+          <td class="py-4 px-4">{{ lancamento.criado_em|date:"d/m/Y" }}</td>
+          <td class="py-4 px-4">{{ lancamento.observacao|truncatechars:20|default:"-" }}</td>
+          <td class="py-4 px-4">
+            <span class="inline-flex items-center px-2 py-[2px] rounded-full text-sky-700 bg-sky-50 text-sm font-medium border border-sky-100">
+              <i class="bi bi-flag-fill text-sm mr-1"></i> Finalizado
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="py-6 text-center text-gray-400 text-[15px]">Nenhum processo finalizado encontrado</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+
+<!-- Dropdown de filtro de destino - Versão Corrigida -->
+<div id="destinoFilterDropdown" class="hidden absolute z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+  <div class="py-1">
+    <div class="px-4 py-2 border-b border-gray-100">
+      <p class="text-sm font-medium text-gray-700">Filtrar por destino</p>
+    </div>
+    {% for lancamento in lancamentos|dictsort:"destino.nome" %}
+      {% ifchanged lancamento.destino.id %}
+      <div class="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center">
+        <input type="checkbox" id="filter-{{ lancamento.destino.id }}" value="{{ lancamento.destino.id }}" 
+               class="destino-filter-checkbox mr-2 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+        <label for="filter-{{ lancamento.destino.id }}" class="text-sm text-gray-700">
+          {{ lancamento.destino.nome }}
+        </label>
+      </div>
+      {% endifchanged %}
+    {% endfor %}
+    <div class="px-4 py-2 border-t border-gray-100 flex justify-between">
+      <button id="applyDestinoFilter" class="text-xs bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700">
+        Aplicar
+      </button>
+      <button id="clearDestinoFilter" class="text-xs text-gray-600 px-3 py-1 rounded hover:bg-gray-100">
+        Limpar
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  #destinoFilterDropdown {
+    z-index: 1000;
+    pointer-events: auto;
+  }
+  
+  #destinoFilterDropdown * {
+    pointer-events: auto;
+  }
+</style>
+
+<script>
+  // Variáveis para armazenar os filtros ativos
+  let activeDestinoFilters = [];
+  let activeProcessoFilter = '';
+
+  // Função para aplicar os filtros
+  function applyFilters() {
+    const rows = document.querySelectorAll('#lancamentosTableBody tr:not([data-empty])');
+    const selectAllCheckbox = document.getElementById('select-all');
+    let hasVisibleItems = false;
+    
+    // Remove mensagem anterior se existir
+    const existingEmptyRow = document.querySelector('#lancamentosTableBody tr[data-empty]');
+    if (existingEmptyRow) {
+      existingEmptyRow.remove();
+    }
+    
+    rows.forEach(row => {
+      const processoText = row.getAttribute('data-processo');
+      const destinoId = row.getAttribute('data-destino');
+      
+      // Verificar filtro de processo
+      const processoMatch = !activeProcessoFilter || 
+                         processoText.includes(activeProcessoFilter.toLowerCase());
+      
+      // Verificar filtros de destino
+      const destinoMatch = activeDestinoFilters.length === 0 || 
+                         activeDestinoFilters.includes(destinoId);
+      
+      // Mostrar/ocultar com base nos filtros
+      if (processoMatch && destinoMatch) {
+        row.style.display = '';
+        hasVisibleItems = true;
+      } else {
+        row.style.display = 'none';
+        // Desmarca os itens que serão ocultados
+        row.querySelector('input[name="selecionados"]').checked = false;
+      }
+    });
+    
+    // Desmarca o "Selecionar todos" quando aplicar filtro
+    selectAllCheckbox.checked = false;
+    
+    // Mostra mensagem se não houver itens visíveis
+    if (!hasVisibleItems && rows.length > 0) {
+      const emptyRow = document.createElement('tr');
+      emptyRow.setAttribute('data-empty', 'true');
+      emptyRow.innerHTML = '<td colspan="8" class="py-6 text-center text-gray-400 text-[15px]">Nenhum resultado encontrado com os filtros atuais</td>';
+      document.getElementById('lancamentosTableBody').appendChild(emptyRow);
+    }
+  }
+
+  // Configurar event listeners
+  document.addEventListener('DOMContentLoaded', function() {
+    // Filtro dinâmico para número do processo
+    document.getElementById('processoFilterInput').addEventListener('input', function(e) {
+      activeProcessoFilter = e.target.value.trim();
+      applyFilters();
+    });
+
+    // Configurar o filtro de destino
+    const destinoFilterButton = document.getElementById('destinoFilterButton');
+    const destinoFilterDropdown = document.getElementById('destinoFilterDropdown');
+    const applyDestinoFilter = document.getElementById('applyDestinoFilter');
+    const clearDestinoFilter = document.getElementById('clearDestinoFilter');
+    
+    // Posicionar o dropdown abaixo do botão
+    function positionDropdown(dropdown, button) {
+      const buttonRect = button.getBoundingClientRect();
+      dropdown.style.position = 'fixed';
+      dropdown.style.left = `${buttonRect.left}px`;
+      dropdown.style.top = `${buttonRect.bottom + window.scrollY}px`;
+    }
+    
+    // Alternar a visibilidade do dropdown de destino
+    destinoFilterButton.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      positionDropdown(destinoFilterDropdown, destinoFilterButton);
+      destinoFilterDropdown.classList.toggle('hidden');
+    });
+    
+    // Fechar o dropdown quando clicar fora
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('#destinoFilterDropdown') && !e.target.closest('#destinoFilterButton')) {
+        destinoFilterDropdown.classList.add('hidden');
+      }
+    });
+    
+    // Evitar que o dropdown feche quando clicar dentro dele
+    destinoFilterDropdown.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+    
+    // Aplicar filtro de destino
+    applyDestinoFilter.addEventListener('click', function(e) {
+      e.stopPropagation();
+      activeDestinoFilters = Array.from(document.querySelectorAll('.destino-filter-checkbox:checked')).map(cb => cb.value);
+      applyFilters();
+      destinoFilterDropdown.classList.add('hidden');
+    });
+    
+    // Limpar filtro de destino
+    clearDestinoFilter.addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.destino-filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      activeDestinoFilters = [];
+      applyFilters();
+      destinoFilterDropdown.classList.add('hidden');
+    });
+
+    // Selecionar apenas itens visíveis
+    document.getElementById('select-all').addEventListener('change', function() {
+      const visibleCheckboxes = document.querySelectorAll('#lancamentosTableBody tr[style=""] input[name="selecionados"], #lancamentosTableBody tr:not([style]) input[name="selecionados"]');
+      visibleCheckboxes.forEach(cb => cb.checked = this.checked);
+      
+      // Desmarca os itens ocultos
+      const hiddenCheckboxes = document.querySelectorAll('#lancamentosTableBody tr[style="display: none;"] input[name="selecionados"]');
+      hiddenCheckboxes.forEach(cb => cb.checked = false);
+    });
+
+    // Validar envio do form - Versão Corrigida
+    document.getElementById('batch-form').addEventListener('submit', function(e) {
+      // Verifica se o clique veio do filtro de destino
+      const path = e.composedPath();
+      const isFilterClick = path.some(el => {
+        return el.id === 'destinoFilterButton' || 
+               el.id === 'destinoFilterDropdown' ||
+               (el.classList && el.classList.contains('destino-filter-checkbox'));
+      });
+      
+      if (!isFilterClick) {
+        const visibleSelected = document.querySelectorAll(
+          '#lancamentosTableBody tr[style=""] input[name="selecionados"]:checked, ' +
+          '#lancamentosTableBody tr:not([style]) input[name="selecionados"]:checked'
+        );
+        
+        if (visibleSelected.length === 0) {
+          e.preventDefault();
+          alert('Selecione pelo menos um item visível para realizar a ação');
+        }
+      } else {
+        e.preventDefault();
+      }
+    });
+
+    // Mostrar campo de status quando necessário
+    document.getElementById('acao').addEventListener('change', function() {
+      const novoStatus = document.getElementById('novo-status');
+      if (this.value === 'alterar_status') {
+        novoStatus.classList.remove('hidden');
+        novoStatus.setAttribute('required', 'required');
+      } else {
+        novoStatus.classList.add('hidden');
+        novoStatus.removeAttribute('required');
+        novoStatus.value = '';
+      }
+    });
+  });
+</script>
+{% endblock %}

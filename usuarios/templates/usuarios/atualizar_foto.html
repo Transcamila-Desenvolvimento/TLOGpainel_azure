@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block 'dashboard' %}
+<div class="container profile-container">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">Selecione uma nova foto:</label>
+            <input type="file" class="form-control" name="profile_picture" accept="image/*">
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+</div>
+{% endblock %}

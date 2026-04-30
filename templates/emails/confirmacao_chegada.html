@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Operação de Movimentação Interna</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f8fafc; font-family:Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc; padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding:40px 24px 16px;">
+              <img src="https://res.cloudinary.com/dfh2plz7g/image/upload/v1759941217/Transcamila_Logo_Atualizada-removebg-preview_lcbfbt.png" alt="Transcamila Luft Logistics" style="max-width:220px; height:auto;">
+            </td>
+          </tr>
+
+          <!-- Cabeçalho -->
+          <tr>
+            <td align="center" style="padding:0 32px 24px;">
+              <h2 style="font-size:18px; color:#1e293b; margin:0; font-weight:600;">Operação de Movimentação Interna</h2>
+              <p style="font-size:14px; color:#64748b; margin:6px 0 0;">Transcamila Rondonópolis</p>
+            </td>
+          </tr>
+
+          <!-- Linha de tempo -->
+          <tr>
+            <td style="padding:32px 48px 48px;">
+              
+              <!-- Etapa 1 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                <tr>
+                  <td width="36" align="center" valign="top">
+                    <div style="width:14px; height:14px; background-color:#3b82f6; border-radius:50%; border:3px solid #bfdbfe; margin:0 auto;"></div>
+                    <div style="width:2px; background-color:#d1d5db; height:50px; margin:6px auto;"></div>
+                  </td>
+                  <td valign="top" style="padding-left:14px; color:#1e293b; font-size:14px; line-height:22px;">
+                    <strong>{{ agendamento.horario_chegada|time:"H:i" }}</strong> — 
+                    O usuário <strong>{{ usuario.first_name }} {{ usuario.last_name }}</strong> confirmou a chegada do motorista 
+                    <strong>{{ agendamento.motorista }}</strong> com o caminhão de placa 
+                    <strong>{{ agendamento.placa_veiculo }}</strong>.  
+                    Tipo: <strong>{% if agendamento.tipo == 'coleta' %}Coleta{% else %}Entrega{% endif %}</strong>  
+                    Agendado para <strong>{{ agendamento.data_agendada|date:"d/m/Y" }}</strong> às 
+                    {% if agendamento.horario_agendado|time:"H:i" == "00:00" %}
+                      <strong><span style="display: inline-block; padding: 2px 8px; background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; border-radius: 4px; font-size: 11px; font-weight: 600;">ENCAIXE</span></strong>
+                    {% else %}
+                      <strong>{{ agendamento.horario_agendado|time:"H:i" }}</strong>
+                    {% endif %}.
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Etapa 2 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin-top:20px;">
+                <tr>
+                  <td width="36" align="center" valign="top">
+                    <div style="width:14px; height:14px; background-color:#ffffff; border-radius:50%; border:2px solid #d1d5db; margin:0 auto;"></div>
+                    <div style="width:2px; background-color:#d1d5db; height:50px; margin:6px auto;"></div>
+                  </td>
+                  <td valign="top" style="padding-left:14px; color:#64748b; font-size:14px; line-height:22px;">
+                    CheckList — <em>Pendente</em>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Etapa 3 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin-top:20px;">
+                <tr>
+                  <td width="36" align="center" valign="top">
+                    <div style="width:14px; height:14px; background-color:#ffffff; border-radius:50%; border:2px solid #d1d5db; margin:0 auto;"></div>
+                    <div style="width:2px; background-color:#d1d5db; height:50px; margin:6px auto;"></div>
+                  </td>
+                  <td valign="top" style="padding-left:14px; color:#64748b; font-size:14px; line-height:22px;">
+                    Armazém — <em>Pendente</em>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Etapa 4 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin-top:20px;">
+                <tr>
+                  <td width="36" align="center" valign="top">
+                    <div style="width:14px; height:14px; background-color:#ffffff; border-radius:50%; border:2px solid #d1d5db; margin:0 auto;"></div>
+                  </td>
+                  <td valign="top" style="padding-left:14px; color:#64748b; font-size:14px; line-height:22px;">
+                    OD/Onda (WMS) — <em>Pendente</em>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Rodapé -->
+          <tr>
+            <td align="center" style="background-color:#f8fafc; border-top:1px solid #e2e8f0; padding:20px 0;">
+              <p style="font-size:12px; color:#94a3b8; margin:0;">TLOGpainel — ©2025 Transcamila Cargas e Armazéns Gerais LTDA</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
