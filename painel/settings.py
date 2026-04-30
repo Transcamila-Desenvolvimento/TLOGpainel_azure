@@ -37,7 +37,6 @@ ALLOWED_HOSTS = ['portorestrito.pythonanywhere.com', '127.0.0.1', 'localhost', '
 website_hostname = os.environ.get('WEBSITE_HOSTNAME')
 if website_hostname:
     ALLOWED_HOSTS.append(website_hostname)
-
 # Permitir CSRF de origens da rede local
 CSRF_TRUSTED_ORIGINS = [
     'http://192.168.68.109:8000',
@@ -47,7 +46,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 if website_hostname:
     CSRF_TRUSTED_ORIGINS.append(f"https://{website_hostname}")
-
 
 # Application definition
 
@@ -196,7 +194,6 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
