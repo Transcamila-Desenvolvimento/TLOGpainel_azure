@@ -151,8 +151,24 @@
     </table>
   </section>
 
-  <!-- SCRIPT PARA ATUALIZAÇÃO AUTOMÁTICA -->
+  <!-- SCRIPT PARA ATUALIZAÇÃO AUTOMÁTICA (adaptativo — reduz carga no servidor) -->
   <script>
+    let dashboardTimer = null;
+
+    function getDashboardInterval() {
+      if (document.hidden) return 60000;
+      return 15000;
+    }
+
+    function scheduleDashboardUpdate(delay) {
+      if (dashboardTimer) clearTimeout(dashboardTimer);
+      const jitter = Math.random() * 2000;
+      dashboardTimer = setTimeout(async () => {
+        await atualizarDashboard();
+        scheduleDashboardUpdate(getDashboardInterval());
+      }, (delay ?? getDashboardInterval()) + jitter);
+    }
+
     async function atualizarDashboard() {
       try {
         const response = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -174,7 +190,11 @@
       }
     }
 
-    setInterval(atualizarDashboard, 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) scheduleDashboardUpdate(500);
+    });
+
+    scheduleDashboardUpdate(3000);
   </script>
 </body>
 </html>

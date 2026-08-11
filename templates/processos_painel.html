@@ -171,7 +171,7 @@
         <!-- Header -->
         <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
           <h2 class="text-lg font-medium text-slate-800">Processos em Andamento</h2>
-          <p class="text-xs text-slate-500 mt-1">Atualização automática a cada 3 segundos</p>
+          <p class="text-xs text-slate-500 mt-1">Atualização em tempo real (inteligente)</p>
         </div>
 
         <!-- Cards Mobile -->
@@ -410,6 +410,7 @@
     </div>
   </div>
 
+  <script src="{% static 'js/smart_update.js' %}?v=8"></script>
   <script>
     // Estado global simplificado
     let estadoProcessos = new Map(); // Map<id, {status, etapas, timestamp}>
@@ -1014,17 +1015,17 @@
       }
     }
 
-    // Verificar atualizações do servidor
-    function verificarAtualizacoesAutomaticas() {
+    // Busca completa dos processos — só quando o SmartUpdate detecta mudança
+    function buscarDadosProcessos() {
       if (verificandoAtualizacoes) {
-        return;
+        return Promise.resolve();
       }
 
       verificandoAtualizacoes = true;
       const dataFiltro = new URLSearchParams(window.location.search).get('data') || '';
       const url = '/rondonopolis/processos/verificar-atualizacoes/' + (dataFiltro ? `?data=${dataFiltro}` : '');
 
-      fetch(url, {
+      return fetch(url, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'
       })
@@ -1033,7 +1034,6 @@
           return r.json();
         })
         .then(data => {
-          verificandoAtualizacoes = false;
           if (data.success) {
             atualizarPainel(data.processos, data.estatisticas);
           } else {
@@ -1041,8 +1041,10 @@
           }
         })
         .catch(error => {
+          console.error('Erro ao buscar processos:', error);
+        })
+        .finally(() => {
           verificandoAtualizacoes = false;
-          console.error('Erro ao verificar atualizações:', error);
         });
     }
 
@@ -1119,11 +1121,10 @@
       // Ordenar inicialmente
       setTimeout(() => reordenarLista(), 100);
 
-      // Iniciar atualizações automáticas após 2 segundos
-      setTimeout(() => {
-        verificarAtualizacoesAutomaticas();
-        setInterval(verificarAtualizacoesAutomaticas, 3000);
-      }, 2000);
+      // Smart Update: checagem leve a cada ~5s; busca pesada só quando há mudança
+      SmartUpdate.init('painel', {
+        onRefresh: buscarDadosProcessos
+      });
     });
   </script>
 

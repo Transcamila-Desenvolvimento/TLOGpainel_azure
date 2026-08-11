@@ -4,26 +4,27 @@
  */
 
 const SmartUpdate = {
-    tela: null, // 'portaria', 'checklist', 'onda', 'armazem', 'liberacao-documentos'
-    timestamp: null, // Última atualização recebida do servidor
+    tela: null, // 'portaria', 'checklist', 'onda', 'armazem', 'liberacao-documentos', 'painel'
+    timestamp: null,
     timer: null,
+    options: {},
 
     // Controle de Atividade
     isUserActive: true,
     lastActivityTime: Date.now(),
-    idleThreshold: 60000, // 60 segundos para considerar ocioso
+    idleThreshold: 60000,
 
-    // Intervalos (ms)
-    // Intervalos (ms)
+    // Intervalos (ms) — checagem leve; dados pesados só quando há mudança
     intervals: {
-        active: 5000,      // 5s (Aumentado para aliviar load)
-        idle: 15000,       // 15s (Economia)
-        hidden: 60000,     // 60s (Tab em segundo plano)
-        error: 30000       // 30s (Se der erro no server, acalma)
+        active: 5000,
+        idle: 20000,
+        hidden: 90000,
+        error: 30000
     },
 
-    init: function (tela) {
+    init: function (tela, options) {
         this.tela = tela;
+        this.options = options || {};
         console.log(`🚀 Smart Update Adaptive iniciado para: ${tela}`);
 
         // Inicializar rastreadores de atividade
@@ -107,9 +108,13 @@ const SmartUpdate = {
             .then(data => {
                 if (data.update) {
                     console.log(`✨ [SmartUpdate] Atualizando... (${currentInterval}ms)`);
-                    this.timestamp = data.timestamp; // Atualiza timestamp local
-                    this.refreshTable();
-                    // refreshTable vai agendar o próximo quando terminar
+                    this.timestamp = data.timestamp;
+                    if (typeof this.options.onRefresh === 'function') {
+                        Promise.resolve(this.options.onRefresh())
+                            .finally(() => this.scheduleNext(this.getInterval()));
+                    } else {
+                        this.refreshTable();
+                    }
                 } else {
                     if (data.timestamp && !this.timestamp) {
                         this.timestamp = data.timestamp; // Sync inicial

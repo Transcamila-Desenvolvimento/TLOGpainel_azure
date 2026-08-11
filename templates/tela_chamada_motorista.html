@@ -99,7 +99,7 @@ let filaChamadas = []; // Fila local de chamadas pendentes
 function verificarNovaChamada() {
     // Não verificar se estiver reproduzindo áudio - processar fila sequencialmente
     if (reproduzindoAudio) {
-        return;
+        return Promise.resolve();
     }
     
     // Se já houver chamadas na fila local, processar a próxima
@@ -108,15 +108,15 @@ function verificarNovaChamada() {
         if (proximaChamada && !chamadasProcessadas.has(proximaChamada.id)) {
             chamadasProcessadas.add(proximaChamada.id);
             exibirChamada(proximaChamada);
-            return;
+            return Promise.resolve();
         }
     }
     
-    if (verificandoChamada) return;
+    if (verificandoChamada) return Promise.resolve();
     
     verificandoChamada = true;
     
-    fetch('/rondonopolis/motoristas/verificar-chamada/', {
+    return fetch('/rondonopolis/motoristas/verificar-chamada/', {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         },
@@ -135,9 +135,7 @@ function verificarNovaChamada() {
             const chamada = data.chamada;
             const chamadaId = chamada.id || chamada.timestamp;
             
-            // Verificar se é uma nova chamada (não a mesma que já foi reproduzida)
             if (!chamadasProcessadas.has(chamadaId)) {
-                // Adicionar à fila local para processar sequencialmente
                 filaChamadas.push(chamada);
             }
         }
@@ -145,7 +143,6 @@ function verificarNovaChamada() {
     .catch(error => {
         verificandoChamada = false;
         console.error('Erro ao verificar chamada:', error);
-        // Não mostrar erro ao usuário, apenas logar
     });
 }
 
@@ -437,15 +434,32 @@ document.addEventListener('DOMContentLoaded', function() {
         carregarVozes();
     }
     
+    let chamadaTimer = null;
+
+    function getChamadaInterval() {
+      if (document.hidden) return 15000;
+      return 4000;
+    }
+
+    function scheduleVerificacaoChamada(delay) {
+      if (chamadaTimer) clearTimeout(chamadaTimer);
+      const jitter = Math.random() * 1000;
+      chamadaTimer = setTimeout(() => {
+        verificarNovaChamada().finally(() => {
+          scheduleVerificacaoChamada(getChamadaInterval());
+        });
+      }, (delay ?? getChamadaInterval()) + jitter);
+    }
+
     // NÃO verificar imediatamente para evitar pegar chamadas antigas
-    // Aguardar 3 segundos antes de começar a verificar
     setTimeout(() => {
-        console.log('Iniciando verificação de chamadas');
-        verificarNovaChamada();
-        
-        // Verificar a cada 2 segundos
-        setInterval(verificarNovaChamada, 2000);
+        console.log('Iniciando verificação de chamadas (adaptativo)');
+        scheduleVerificacaoChamada(0);
     }, 3000);
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) scheduleVerificacaoChamada(500);
+    });
     
     // Permitir interação do usuário para desbloquear áudio (necessário em alguns navegadores)
     document.addEventListener('click', function() {

@@ -1,7 +1,12 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from django.core.cache import cache
 from .models import Agendamento, ControleAtualizacao
+
+
+def _invalidar_cache_controle(tela):
+    cache.delete(f'controle_atualizacao_{tela}')
 
 @receiver(post_save, sender=Agendamento)
 def agendamento_post_save(sender, instance, created, **kwargs):
@@ -32,6 +37,7 @@ def agendamento_post_save(sender, instance, created, **kwargs):
 
     if eh_hoje:
         telas_afetadas.add('portaria')       # Sempre impacta portaria (liberados/agendados) do dia
+        telas_afetadas.add('painel')         # Painel TV de processos
 
         # 2. Se é coleta, sempre avisa a onda (para pegar imports/criações novas)
         if instance.tipo == 'coleta':
@@ -69,16 +75,18 @@ def agendamento_post_save(sender, instance, created, **kwargs):
             tela=tela,
             defaults={'ultima_atualizacao': agora}
         )
+        _invalidar_cache_controle(tela)
 
 @receiver(post_delete, sender=Agendamento)
 def agendamento_post_delete(sender, instance, **kwargs):
     """
     Se algo for excluído, força atualização em tudo para garantir limpeza
     """
-    telas = ['portaria', 'checklist', 'onda', 'armazem', 'liberacao-documentos', 'agendamentos']
+    telas = ['portaria', 'checklist', 'onda', 'armazem', 'liberacao-documentos', 'agendamentos', 'painel']
     agora = timezone.now()
     for tela in telas:
         ControleAtualizacao.objects.update_or_create(
             tela=tela,
             defaults={'ultima_atualizacao': agora}
         )
+        _invalidar_cache_controle(tela)

@@ -4448,14 +4448,18 @@ def verificar_atualizacoes(request):
         from .models import ControleAtualizacao
         from django.utils.dateparse import parse_datetime
         from django.utils import timezone
+        from django.core.cache import cache
         
-        # Obter timestamp da última atualização global para esta tela
-        controle = ControleAtualizacao.objects.filter(tela=tela).first()
+        cache_key = f'controle_atualizacao_{tela}'
+        server_timestamp = cache.get(cache_key)
         
-        if not controle:
-            return JsonResponse({'update': False, 'timestamp': timezone_now().isoformat()})
-            
-        server_timestamp = controle.ultima_atualizacao
+        if server_timestamp is None:
+            controle, _ = ControleAtualizacao.objects.get_or_create(
+                tela=tela,
+                defaults={'ultima_atualizacao': timezone.now()}
+            )
+            server_timestamp = controle.ultima_atualizacao
+            cache.set(cache_key, server_timestamp, timeout=3)
         
         should_update = False
         
@@ -4463,7 +4467,6 @@ def verificar_atualizacoes(request):
             try:
                 client_dt = parse_datetime(ultimo_timestamp_client)
                 if client_dt:
-                   # Normalizar para garantir comparação justa (evitar erro can't compare offset-naive and offset-aware)
                    if timezone.is_aware(server_timestamp) and timezone.is_naive(client_dt):
                        client_dt = timezone.make_aware(client_dt)
                    elif timezone.is_naive(server_timestamp) and timezone.is_aware(client_dt):
@@ -4473,10 +4476,9 @@ def verificar_atualizacoes(request):
                        should_update = True
             except Exception as e:
                 logger.warning(f"Erro ao comparar timestamps ({tela}): {e}")
-                should_update = True # Se erro na comparação, força atualizar por segurança
+                should_update = True
         else:
-            # Se cliente não mandou timestamp, assume que precisa atualizar
-            should_update = False # Primeira carga já tem dados
+            should_update = False
             
         return JsonResponse({
             'update': should_update,
