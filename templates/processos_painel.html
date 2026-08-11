@@ -8,6 +8,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Painel de Movimentações Internas - Operação Rondonópolis</title>
   <link rel="icon" type="image/png" href="{% static 'imagens/icone.png' %}">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -410,7 +413,7 @@
     </div>
   </div>
 
-  <script src="{% static 'js/smart_update.js' %}?v=8"></script>
+  <script src="{% static 'js/smart_update.js' %}?v=9"></script>
   <script>
     // Estado global simplificado
     let estadoProcessos = new Map(); // Map<id, {status, etapas, timestamp}>
@@ -1023,7 +1026,10 @@
 
       verificandoAtualizacoes = true;
       const dataFiltro = new URLSearchParams(window.location.search).get('data') || '';
-      const url = '/rondonopolis/processos/verificar-atualizacoes/' + (dataFiltro ? `?data=${dataFiltro}` : '');
+      const params = new URLSearchParams();
+      if (dataFiltro) params.set('data', dataFiltro);
+      if (SmartUpdate.timestamp) params.set('timestamp', SmartUpdate.timestamp);
+      const url = '/rondonopolis/processos/verificar-atualizacoes/?' + params.toString();
 
       return fetch(url, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -1035,7 +1041,10 @@
         })
         .then(data => {
           if (data.success) {
-            atualizarPainel(data.processos, data.estatisticas);
+            if (data.update === false) return;
+            if (data.processos) {
+              atualizarPainel(data.processos, data.estatisticas);
+            }
           } else {
             console.warn('Resposta não bem-sucedida:', data);
           }

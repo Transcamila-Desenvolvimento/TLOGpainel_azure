@@ -3443,12 +3443,17 @@ def processos_painel(request):
 @require_http_methods(["GET"])
 def verificar_atualizacoes_processos(request):
     """
-    Endpoint para verificar atualizações dos processos em tempo real
-    Retorna os processos do dia com seus timestamps de atualização
+    Endpoint para verificar atualizações dos processos em tempo real.
+    Com timestamp: resposta leve se nada mudou. Sem mudanças: usa cache em memória.
     """
+    from django.core.cache import cache
+    from .models import ControleAtualizacao
+    from django.utils.dateparse import parse_datetime
+    from django.utils import timezone as tz
+
     data_filtro = request.GET.get('data')
-    
-    # Data padrão: hoje
+    ultimo_timestamp_client = request.GET.get('timestamp')
+
     if data_filtro:
         try:
             data_selecionada = datetime.strptime(data_filtro, '%Y-%m-%d').date()
@@ -3456,7 +3461,42 @@ def verificar_atualizacoes_processos(request):
             data_selecionada = timezone_now().date()
     else:
         data_selecionada = timezone_now().date()
-    
+
+    cache_controle_key = 'controle_atualizacao_painel'
+    server_ts = cache.get(cache_controle_key)
+    if server_ts is None:
+        controle, _ = ControleAtualizacao.objects.get_or_create(
+            tela='painel',
+            defaults={'ultima_atualizacao': tz.now()}
+        )
+        server_ts = controle.ultima_atualizacao
+        cache.set(cache_controle_key, server_ts, timeout=3)
+
+    server_ts_cmp = server_ts
+    server_ts_iso = server_ts.isoformat()
+
+    if ultimo_timestamp_client and ultimo_timestamp_client not in ('null', ''):
+        try:
+            client_dt = parse_datetime(ultimo_timestamp_client)
+            if client_dt:
+                if tz.is_aware(server_ts) and tz.is_naive(client_dt):
+                    client_dt = tz.make_aware(client_dt)
+                elif tz.is_naive(server_ts) and tz.is_aware(client_dt):
+                    server_ts_cmp = tz.make_aware(server_ts)
+                if server_ts_cmp <= client_dt:
+                    return JsonResponse({
+                        'success': True,
+                        'update': False,
+                        'timestamp': server_ts_iso,
+                    })
+        except Exception as e:
+            logger.warning(f"Erro ao comparar timestamp do painel: {e}")
+
+    full_cache_key = f'painel_processos_{data_selecionada}_{server_ts_iso}'
+    cached = cache.get(full_cache_key)
+    if cached:
+        return JsonResponse(cached)
+
     # Buscar agendamentos do dia - ordenar por atualizado_em desc (mais recente primeiro), depois horario
     agendamentos = Agendamento.objects.filter(
         data_agendada=data_selecionada
@@ -3509,9 +3549,10 @@ def verificar_atualizacoes_processos(request):
     
     # Veículos = soma de coletas + entregas (cada processo é um veículo)
     veiculos_count = (estatisticas['coletas'] or 0) + (estatisticas['entregas'] or 0)
-    
-    return JsonResponse({
+
+    response_data = {
         'success': True,
+        'update': True,
         'processos': processos,
         'estatisticas': {
             'coletas': estatisticas['coletas'] or 0,
@@ -3520,8 +3561,10 @@ def verificar_atualizacoes_processos(request):
             'concluidos': estatisticas['concluidos'] or 0,
             'peso_total': float(estatisticas['peso_total'] or 0),
         },
-        'timestamp': timezone_now().isoformat(),
-    })
+        'timestamp': server_ts_iso,
+    }
+    cache.set(full_cache_key, response_data, timeout=300)
+    return JsonResponse(response_data)
 
 
 @login_required
