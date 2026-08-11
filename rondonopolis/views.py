@@ -14,6 +14,7 @@ from django.utils import timezone as django_timezone  # Manter para compatibilid
 from datetime import datetime, timedelta
 from django.db.models import Q, Count, Sum, F, Case, When, IntegerField
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -3367,7 +3368,6 @@ def get_etapas_ordenadas(agendamento):
 
 from django.shortcuts import render
 from django.db.models import Count, Q, Sum, F
-from django.views.decorators.cache import never_cache
 from .models import Agendamento, Transportadora
 from datetime import datetime
 from .utils import timezone_now, timezone_today
