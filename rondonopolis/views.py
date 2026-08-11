@@ -1459,6 +1459,7 @@ from .utils import timezone_now, timezone_today
 @login_required
 @acesso_permitido_apenas_para_filial('rondonopolis')
 @acesso_permitido_por_aba('painel')
+@never_cache
 def processos_painel(request):
     # Filtros
     data_filtro = request.GET.get('data')
@@ -3366,6 +3367,7 @@ def get_etapas_ordenadas(agendamento):
 
 from django.shortcuts import render
 from django.db.models import Count, Q, Sum, F
+from django.views.decorators.cache import never_cache
 from .models import Agendamento, Transportadora
 from datetime import datetime
 from .utils import timezone_now, timezone_today
@@ -3373,6 +3375,7 @@ from .utils import timezone_now, timezone_today
 @login_required
 @acesso_permitido_apenas_para_filial('rondonopolis')
 @acesso_permitido_por_aba('painel')
+@never_cache
 def processos_painel(request):
     # Verificar se o usuário está no grupo "Monitores"
     is_monitor = False
@@ -3474,6 +3477,7 @@ def verificar_atualizacoes_processos(request):
 
     server_ts_cmp = server_ts
     server_ts_iso = server_ts.isoformat()
+    session_ts_key = f'painel_controle_ts_{data_selecionada}'
 
     if ultimo_timestamp_client and ultimo_timestamp_client not in ('null', ''):
         try:
@@ -3491,6 +3495,13 @@ def verificar_atualizacoes_processos(request):
                     })
         except Exception as e:
             logger.warning(f"Erro ao comparar timestamp do painel: {e}")
+    elif request.session.get(session_ts_key) == server_ts_iso:
+        # Abas antigas (sem timestamp): evita consulta pesada e resposta grande
+        return JsonResponse({
+            'success': False,
+            'update': False,
+            'timestamp': server_ts_iso,
+        })
 
     full_cache_key = f'painel_processos_{data_selecionada}_{server_ts_iso}'
     cached = cache.get(full_cache_key)
@@ -3564,6 +3575,8 @@ def verificar_atualizacoes_processos(request):
         'timestamp': server_ts_iso,
     }
     cache.set(full_cache_key, response_data, timeout=300)
+    request.session[session_ts_key] = server_ts_iso
+    request.session.modified = True
     return JsonResponse(response_data)
 
 
